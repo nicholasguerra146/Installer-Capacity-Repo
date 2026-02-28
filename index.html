@@ -1,0 +1,2374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Installer Capacity</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface2: #f9fafb;
+  --border: #e4e7ed;
+  --border2: #d1d5db;
+  --accent: #2563eb;
+  --accent-light: #eff4ff;
+  --accent-mid: #bfdbfe;
+  --text: #111827;
+  --text-2: #374151;
+  --text-3: #6b7280;
+  --text-4: #9ca3af;
+  --available: #16a34a;
+  --available-bg: #f0fdf4;
+  --available-border: #bbf7d0;
+  --busy: #dc2626;
+  --busy-bg: #fef2f2;
+  --busy-border: #fecaca;
+  --partial: #d97706;
+  --partial-bg: #fffbeb;
+  --partial-border: #fde68a;
+  --blocked: #7c3aed;
+  --blocked-bg: #f5f3ff;
+  --blocked-border: #ddd6fe;
+  --changed: #0891b2;
+  --changed-bg: #ecfeff;
+  --changed-border: #a5f3fc;
+  --sidebar-w: 220px;
+  --topbar-h: 56px;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── UPLOAD SCREEN ── */
+#uploadScreen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eff4ff 0%, #f4f5f7 50%, #f0fdf4 100%);
+}
+.upload-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: var(--shadow-md);
+}
+.upload-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.upload-logo-icon {
+  width: 38px; height: 38px;
+  background: var(--accent);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-size: 18px;
+}
+.upload-logo-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.upload-logo-text span { color: var(--accent); }
+.upload-box h2 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+}
+.upload-box p {
+  font-size: 14px;
+  color: var(--text-3);
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+.upload-slots { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.upload-slot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--surface2);
+  position: relative;
+}
+.upload-slot:hover { border-color: var(--accent); background: var(--accent-light); }
+.upload-slot.loaded { border-style: solid; border-color: var(--available); background: var(--available-bg); }
+.upload-slot.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.upload-slot input { display: none; }
+.slot-icon {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.upload-slot.loaded .slot-icon { background: var(--available-border); }
+.slot-info { flex: 1; }
+.slot-label { font-weight: 500; font-size: 14px; color: var(--text); }
+.slot-desc { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.slot-file { font-size: 12px; color: var(--available); font-family: 'DM Mono', monospace; margin-top: 4px; }
+.slot-check {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.upload-slot.loaded .slot-check { background: var(--available); border-color: var(--available); color: white; font-weight: 600; }
+.upload-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: -0.01em;
+}
+.upload-btn:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+.upload-btn:disabled { background: var(--border2); color: var(--text-4); cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── APP SHELL ── */
+#app { display: none; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+.sidebar-logo {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-logo-icon {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.sidebar-logo-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.sidebar-logo-text span { display: block; font-size: 11px; color: var(--text-3); font-weight: 400; margin-top: 1px; }
+
+.sidebar-section { padding: 16px 12px 8px; }
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-4);
+  padding: 0 8px;
+  margin-bottom: 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: all 0.12s;
+  position: relative;
+}
+.nav-item:hover { background: var(--bg); color: var(--text-2); }
+.nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.nav-item .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--busy);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  display: none;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 12px;
+}
+.sidebar-load-info {
+  font-size: 11px;
+  color: var(--text-4);
+  font-family: 'DM Mono', monospace;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.btn-ghost {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.12s;
+}
+.btn-ghost:hover { background: var(--bg); color: var(--text-2); border-color: var(--border2); }
+.btn-ghost + .btn-ghost { margin-top: 6px; }
+
+/* ── MAIN CONTENT ── */
+.main {
+  margin-left: var(--sidebar-w);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  height: var(--topbar-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+.topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-right: 4px;
+}
+.topbar-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+/* View switcher */
+.view-switcher {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.vbtn {
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.12s;
+}
+.vbtn.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
+.vbtn:hover:not(.active) { color: var(--text-2); }
+
+/* Date nav */
+.date-nav { display: flex; align-items: center; gap: 6px; }
+.date-arrow {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: all 0.12s;
+}
+.date-arrow:hover { border-color: var(--border2); color: var(--text); }
+.date-select {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  outline: none;
+  font-weight: 500;
+}
+.date-select:focus { border-color: var(--accent); }
+
+/* Month nav */
+.month-nav { display: flex; align-items: center; gap: 8px; }
+.month-label { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+
+/* Filters */
+.filter-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--text-3);
+}
+.filter-pill label { font-weight: 500; white-space: nowrap; color: var(--text-2); }
+.filter-pill select, .filter-pill input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  outline: none;
+  min-width: 90px;
+}
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.manage-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.12s;
+}
+.manage-btn:hover { border-color: var(--border2); background: var(--bg); }
+
+/* Storage banner */
+.storage-banner {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  color: var(--changed);
+  background: var(--changed-bg);
+  border-bottom: 1px solid var(--changed-border);
+  flex-shrink: 0;
+}
+.storage-banner.show { display: flex; }
+
+/* ── CONTENT AREA ── */
+.content-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── STATS ROW (inside content) ── */
+.stats-row {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px 0;
+  flex-shrink: 0;
+}
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.stat-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.stat-chip-val { font-size: 18px; font-weight: 700; font-family: 'DM Mono', monospace; line-height: 1; color: var(--text); }
+.stat-chip-lbl { font-size: 11px; color: var(--text-3); font-weight: 500; }
+
+/* ── MAIN PANEL ── */
+.main-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+}
+
+/* ── INSTALLER GRID ── */
+.installer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+
+.installer-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.installer-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.installer-card.changed { border-color: var(--changed); }
+
+.card-header {
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.card-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.card-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.card-name-sub { display: flex; align-items: center; gap: 5px; margin-top: 2px; flex-wrap: wrap; }
+.role-badge {
+  font-size: 9px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.changed-chip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--changed-bg);
+  color: var(--changed);
+  border: 1px solid var(--changed-border);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+.status-indicator {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  letter-spacing: -0.01em;
+}
+.status-available { background: var(--available-bg); color: var(--available); border: 1px solid var(--available-border); }
+.status-busy { background: var(--busy-bg); color: var(--busy); border: 1px solid var(--busy-border); }
+.status-partial { background: var(--partial-bg); color: var(--partial); border: 1px solid var(--partial-border); }
+.status-blocked { background: var(--blocked-bg); color: var(--blocked); border: 1px solid var(--blocked-border); }
+
+.card-body { padding: 10px 14px; }
+.avail-msg { font-size: 12px; color: var(--available); font-weight: 500; padding: 4px 0; text-align: center; }
+
+.job-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.job-row:last-child { border-bottom: none; }
+.job-time { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-3); min-width: 58px; padding-top: 1px; }
+.job-subj { flex: 1; color: var(--text-2); line-height: 1.3; font-weight: 500; }
+.job-meta { font-size: 10px; color: var(--text-4); margin-top: 1px; }
+.wtype-badge {
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.badge-install { background: #dcfce7; color: #16a34a; }
+.badge-recovery { background: #fee2e2; color: #dc2626; }
+.badge-service { background: #fef3c7; color: #d97706; }
+.badge-other { background: var(--blocked-bg); color: var(--blocked); }
+
+.block-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.block-label {
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--blocked-bg);
+  color: var(--blocked);
+  border: 1px solid var(--blocked-border);
+  font-family: 'DM Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── WEEK/2WK VIEW ── */
+.multi-grid {
+  display: grid;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.multi-grid.week { grid-template-columns: repeat(5, minmax(190px, 1fr)); }
+.multi-grid.twoweek { grid-template-columns: repeat(10, minmax(160px, 1fr)); }
+
+.day-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.day-col-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.day-col-dow { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.day-col-dow.today-col { color: var(--accent); }
+.day-col-date { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 1px; }
+.day-col-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.day-chip {
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.day-col-body { padding: 6px; }
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  margin-bottom: 2px;
+  font-size: 11px;
+  cursor: default;
+}
+.day-row:hover { background: var(--bg); }
+.day-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.day-name-text { flex: 1; color: var(--text-2); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-role-chip { font-size: 8px; font-family: 'DM Mono', monospace; padding: 1px 4px; border-radius: 2px; flex-shrink: 0; }
+.day-job-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-4); flex-shrink: 0; }
+
+/* ── MONTH VIEW ── */
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { font-size: 10px; font-weight: 700; color: var(--text-3); text-align: center; padding: 6px 0; text-transform: uppercase; letter-spacing: 0.06em; }
+.cal-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 80px;
+  cursor: pointer;
+  transition: all 0.12s;
+  box-shadow: var(--shadow);
+}
+.cal-cell:hover { border-color: var(--accent-mid); box-shadow: var(--shadow-md); }
+.cal-cell.today { border-color: var(--accent); border-width: 2px; }
+.cal-cell.empty { background: transparent; border-color: transparent; cursor: default; box-shadow: none; }
+.cal-cell.weekend { opacity: 0.45; cursor: default; }
+.cal-cell.weekend:hover { box-shadow: var(--shadow); border-color: var(--border); }
+.cal-day-n { font-size: 12px; font-weight: 700; color: var(--text-3); margin-bottom: 5px; }
+.cal-cell.today .cal-day-n { color: var(--accent); }
+.cal-bar { height: 3px; border-radius: 2px; margin-bottom: 5px; }
+.cal-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+.cal-dot { font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
+
+/* ── CHANGES VIEW ── */
+.changes-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.changes-table { width: 100%; border-collapse: collapse; }
+.changes-table th { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.07em; padding: 10px 16px; border-bottom: 1px solid var(--border); text-align: left; background: var(--bg); }
+.changes-table td { padding: 11px 16px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text-2); vertical-align: top; }
+.changes-table tr:last-child td { border-bottom: none; }
+.changes-table tr:hover td { background: var(--bg); }
+.change-pill { font-family: 'DM Mono', monospace; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.cpill-added { background: var(--available-bg); color: var(--available); border: 1px solid var(--available-border); }
+.cpill-removed { background: var(--busy-bg); color: var(--busy); border: 1px solid var(--busy-border); }
+.cpill-modified { background: var(--changed-bg); color: var(--changed); border: 1px solid var(--changed-border); }
+
+/* ── FIND AVAILABILITY TOGGLE ── */
+.fa-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--accent-mid);
+  border-radius: 7px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.fa-toggle-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+.fa-toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* ── FIND AVAILABILITY PANEL ── */
+.fa-panel {
+  width: 0;
+  flex-shrink: 0;
+  border-left: 0px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.25s ease, border-left-width 0.25s ease;
+}
+.fa-panel.open {
+  width: 320px;
+  border-left-width: 1px;
+}
+.fa-panel-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.fa-panel-head h3 { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+.fa-panel-head p { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+.fa-form { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+.fa-field label { display: block; font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+.fa-field select, .fa-field input[type=date] {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color 0.12s;
+}
+.fa-field select:focus, .fa-field input[type=date]:focus { border-color: var(--accent); }
+.fa-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fa-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.fa-step-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 16px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: background 0.1s;
+}
+.fa-step-btn:hover { background: var(--border); }
+.fa-step-val { flex: 1; text-align: center; font-size: 14px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--text); background: var(--surface); }
+.fa-search-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: -0.01em;
+}
+.fa-search-btn:hover { background: #1d4ed8; }
+
+.fa-results { flex: 1; overflow-y: auto; padding: 12px; }
+.fa-empty { text-align: center; padding: 30px 16px; color: var(--text-3); }
+.fa-empty-icon { font-size: 32px; margin-bottom: 10px; }
+.fa-empty p { font-size: 12px; line-height: 1.5; }
+.fa-result-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  transition: all 0.12s;
+}
+.fa-result-card:hover { border-color: var(--border2); box-shadow: var(--shadow); }
+.fa-result-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fa-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.fa-result-name { flex: 1; font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.fa-soonest { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent-mid); text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+.fa-window { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.fa-window:last-child { border-bottom: none; padding-bottom: 0; }
+.fa-win-chip { font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; background: var(--available-bg); color: var(--available); border: 1px solid var(--available-border); text-transform: uppercase; font-family: 'DM Mono', monospace; margin-top: 1px; }
+.fa-win-chip.fri-mon { background: var(--partial-bg); color: var(--partial); border-color: var(--partial-border); }
+.fa-win-date { font-size: 11px; font-weight: 500; color: var(--text-2); line-height: 1.4; }
+.fa-win-note { font-size: 10px; color: var(--text-4); margin-top: 1px; }
+.fa-result-count { font-size: 11px; color: var(--text-3); padding: 6px 0 10px; font-weight: 500; }
+
+/* ── EMPTY STATES ── */
+.empty-state { text-align: center; padding: 60px 30px; color: var(--text-3); }
+.empty-icon { font-size: 36px; margin-bottom: 12px; }
+.empty-state p { font-size: 13px; }
+
+/* ── MANAGE OVERLAY ── */
+.overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.overlay.open { display: flex; }
+.manage-panel {
+  background: var(--surface);
+  border-radius: 14px;
+  width: 440px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.manage-head {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.manage-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+.manage-head p { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+.manage-close {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  width: 28px; height: 28px; cursor: pointer; font-size: 14px; color: var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+}
+.manage-close:hover { color: var(--text); }
+.manage-search-bar { padding: 12px 24px; border-bottom: 1px solid var(--border); }
+.manage-search-bar input {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none;
+}
+.manage-search-bar input:focus { border-color: var(--accent); }
+.manage-actions-bar { padding: 8px 24px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+.manage-action { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 500; padding: 3px 6px; border-radius: 4px; }
+.manage-action:hover { background: var(--accent-light); }
+.manage-list { flex: 1; overflow-y: auto; padding: 8px 12px; }
+.manage-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 7px; cursor: pointer; transition: background 0.1s;
+}
+.manage-row:hover { background: var(--bg); }
+.m-check {
+  width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+  flex-shrink: 0; transition: all 0.12s;
+}
+.manage-row.visible .m-check { background: var(--accent); border-color: var(--accent); color: white; }
+.m-name { font-size: 13px; font-weight: 500; color: var(--text-2); flex: 1; }
+.manage-foot {
+  padding: 14px 24px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.manage-foot p { font-size: 12px; color: var(--text-3); }
+.btn-primary {
+  padding: 8px 20px; background: var(--accent); color: white; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-primary:hover { background: #1d4ed8; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+
+/* ── TEAM SHARING ── */
+.team-load-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1.5px solid var(--accent-mid);
+  border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.team-load-btn:hover:not(:disabled) { background: var(--accent); color: white; border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+.team-load-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.team-meta { font-size: 11px; color: var(--text-4); margin-top: 8px; text-align: center; font-family: 'DM Mono', monospace; min-height: 16px; }
+.upload-or { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+.upload-or-line { flex: 1; height: 1px; background: var(--border); }
+.upload-or-text { font-size: 11px; font-weight: 600; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+.btn-publish {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--available);
+  border: 1px solid var(--available-border);
+  background: var(--available-bg);
+  cursor: pointer;
+  width: 100%;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.12s;
+  margin-top: 6px;
+}
+.btn-publish:hover { background: var(--available); color: white; border-color: var(--available); }
+.btn-publish:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── TOPBAR TITLE FIX ── */
+.topbar-title { white-space: nowrap; }
+
+/* ── DARK SIDEBAR ── */
+.sidebar { background: #0f172a; border-right: 1px solid rgba(255,255,255,0.06); }
+.sidebar-logo { border-bottom: 1px solid rgba(255,255,255,0.06); }
+.sidebar-logo-text { color: #f1f5f9; }
+.sidebar-logo-text span { color: #64748b; }
+.sidebar-section-label { color: #475569; }
+.nav-item { color: #94a3b8; }
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #e2e8f0; }
+.nav-item.active { background: rgba(59,130,246,0.18); color: #60a5fa; }
+.nav-badge { background: #ef4444; }
+.sidebar-bottom { border-top: 1px solid rgba(255,255,255,0.06); }
+.sidebar-load-info { background: rgba(255,255,255,0.04); color: #64748b; }
+.btn-ghost { color: #64748b; border-color: rgba(255,255,255,0.08); }
+.btn-ghost:hover { background: rgba(255,255,255,0.06); color: #94a3b8; border-color: rgba(255,255,255,0.12); }
+.btn-publish { background: rgba(22,163,74,0.15); border-color: rgba(22,163,74,0.3); color: #4ade80; }
+.btn-publish:hover { background: #16a34a; color: white; border-color: #16a34a; }
+
+/* ── SIDEBAR STATS PANEL ── */
+.sidebar-stats { padding: 14px 12px 4px; }
+.sidebar-stats-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #475569; padding: 0 8px; margin-bottom: 6px;
+}
+.sidebar-stat-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 5px 10px; border-radius: 6px;
+}
+.sidebar-stat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sidebar-stat-label { flex: 1; font-size: 12px; color: #64748b; font-weight: 500; }
+.sidebar-stat-val {
+  font-size: 14px; font-weight: 700; font-family: 'DM Mono', monospace; color: #e2e8f0;
+}
+
+/* ── LIST VIEW (day view) ── */
+.installer-list {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+}
+.list-section-hdr {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 16px; background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px; font-weight: 700; color: var(--text-3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.list-section-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.list-section-count {
+  font-size: 11px; color: var(--text-4); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; padding: 0 7px; font-weight: 600;
+}
+.list-row {
+  display: flex; align-items: center; min-height: 46px;
+  border-bottom: 1px solid var(--border); transition: background 0.1s;
+}
+.list-row:last-child { border-bottom: none; }
+.list-row:hover { background: var(--bg); }
+.list-row.changed { outline: 1px solid var(--changed-border); outline-offset: -1px; }
+.list-status-stripe { width: 4px; align-self: stretch; flex-shrink: 0; }
+.list-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0; margin: 0 6px 0 12px;
+}
+.list-name-col { width: 185px; flex-shrink: 0; padding: 8px 8px 8px 0; }
+.list-name {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.list-name-sub { display: flex; align-items: center; gap: 5px; margin-top: 3px; }
+.list-status-col { width: 82px; flex-shrink: 0; padding-right: 10px; }
+.list-jobs-col {
+  flex: 1; display: flex; align-items: center; flex-wrap: wrap;
+  gap: 5px; padding: 8px 16px 8px 0; min-width: 0;
+}
+.list-job-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 5px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-2); max-width: 240px;
+}
+.list-job-time {
+  font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-4); flex-shrink: 0;
+}
+.list-job-subj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.list-block-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 5px;
+  background: var(--blocked-bg); border: 1px solid var(--blocked-border);
+  font-size: 11px; color: var(--blocked);
+}
+.list-avail-msg { font-size: 12px; color: var(--available); font-weight: 500; font-style: italic; }
+.list-more {
+  font-size: 10px; color: var(--text-4); font-family: 'DM Mono', monospace;
+  padding: 2px 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- ── UPLOAD SCREEN ── -->
+<div id="uploadScreen">
+  <div class="upload-box">
+    <div class="upload-logo">
+      <div class="upload-logo-icon">🏗</div>
+      <div class="upload-logo-text">Installer <span>Capacity</span></div>
+    </div>
+    <!-- Team data load section — shown when a bin is configured -->
+    <div id="teamSection" style="display:none; margin-bottom: 4px;">
+      <button class="team-load-btn" id="loadTeamBtn" onclick="loadTeamData()">📥 Load Today's Shared Data</button>
+      <div class="team-meta" id="teamMeta">Checking for published data…</div>
+    </div>
+    <div class="upload-or" id="uploadOrDivider" style="display:none">
+      <div class="upload-or-line"></div>
+      <div class="upload-or-text">or upload new files</div>
+      <div class="upload-or-line"></div>
+    </div>
+
+    <h2>Load today's reports</h2>
+    <p>Upload your two Salesforce exports to build the daily capacity dashboard.</p>
+    <div class="upload-slots">
+      <label class="upload-slot" id="card1" ondragover="handleDrag(event,1)" ondragleave="handleDragLeave(1)" ondrop="handleDrop(event,1)">
+        <div class="slot-icon">📋</div>
+        <div class="slot-info">
+          <div class="slot-label">Schedule Report</div>
+          <div class="slot-desc">Scheduled appointments (.xls / .xlsx)</div>
+          <div class="slot-file" id="fileName1"></div>
+        </div>
+        <div class="slot-check" id="status1"></div>
+        <input type="file" id="file1" accept=".xls,.xlsx" onchange="loadFile(event,1)">
+      </label>
+      <label class="upload-slot" id="card2" ondragover="handleDrag(event,2)" ondragleave="handleDragLeave(2)" ondrop="handleDrop(event,2)">
+        <div class="slot-icon">🚫</div>
+        <div class="slot-info">
+          <div class="slot-label">Non-Availability Report</div>
+          <div class="slot-desc">Time blocks & absences (.xls / .xlsx)</div>
+          <div class="slot-file" id="fileName2"></div>
+        </div>
+        <div class="slot-check" id="status2"></div>
+        <input type="file" id="file2" accept=".xls,.xlsx" onchange="loadFile(event,2)">
+      </label>
+    </div>
+    <button class="upload-btn" id="buildBtn" onclick="buildDashboard()" disabled>Build Dashboard</button>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">🏗</div>
+      <div class="sidebar-logo-text">
+        Installer Capacity
+        <span id="loadInfo">No data</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Views</div>
+      <button class="nav-item active" id="nav-grid" onclick="switchView('grid',this)">
+        <span class="nav-icon">⊞</span> Grid
+      </button>
+      <button class="nav-item" id="nav-available" onclick="switchView('available',this)">
+        <span class="nav-icon">✓</span> Available Only
+      </button>
+      <button class="nav-item" id="nav-changes" onclick="switchView('changes',this)">
+        <span class="nav-icon">↕</span> Changes
+        <span class="nav-badge" id="changesBadge">0</span>
+      </button>
+      <button class="nav-item" id="nav-hidden" onclick="switchView('hidden',this)">
+        <span class="nav-icon">◌</span> Hidden
+        <span class="nav-badge" id="hiddenBadge">0</span>
+      </button>
+    </div>
+
+    <!-- SIDEBAR STATS -->
+    <div class="sidebar-stats" id="sidebarStatsPanel">
+      <div class="sidebar-stats-title">Installers</div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--available)"></div>
+        <div class="sidebar-stat-label">Available</div>
+        <div class="sidebar-stat-val" id="sideStatAvail">—</div>
+      </div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--busy)"></div>
+        <div class="sidebar-stat-label">Booked</div>
+        <div class="sidebar-stat-val" id="sideStatBusy">—</div>
+      </div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--partial)"></div>
+        <div class="sidebar-stat-label">Partial</div>
+        <div class="sidebar-stat-val" id="sideStatPartial">—</div>
+      </div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--blocked)"></div>
+        <div class="sidebar-stat-label">Blocked</div>
+        <div class="sidebar-stat-val" id="sideStatBlocked">—</div>
+      </div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--changed)"></div>
+        <div class="sidebar-stat-label">Changed</div>
+        <div class="sidebar-stat-val" id="sideStatChanged">—</div>
+      </div>
+      <div class="sidebar-stats-title" style="margin-top:10px;">Supervisors</div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--available)"></div>
+        <div class="sidebar-stat-label">Available</div>
+        <div class="sidebar-stat-val" id="sideStatSupAvail">—</div>
+      </div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--busy)"></div>
+        <div class="sidebar-stat-label">Booked</div>
+        <div class="sidebar-stat-val" id="sideStatSupBusy">—</div>
+      </div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:var(--blocked)"></div>
+        <div class="sidebar-stat-label">Blocked</div>
+        <div class="sidebar-stat-val" id="sideStatSupBlocked">—</div>
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="sidebar-load-info" id="sidebarStats">—</div>
+      <button class="btn-ghost" onclick="openManage()">⚙ Manage Resources</button>
+      <button class="btn-publish" id="publishBtn" onclick="publishToTeam()" style="display:none">📤 Publish to Team</button>
+      <button class="btn-ghost" onclick="resetDashboard()">↩ Load New Files</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- STORAGE BANNER -->
+    <div class="storage-banner" id="storageBanner"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <span class="topbar-title" id="viewTitle">Grid View</span>
+      <div class="topbar-divider"></div>
+
+      <!-- View switcher -->
+      <div class="view-switcher" id="viewSwitcher">
+        <button class="vbtn active" onclick="setDateView('day',this)">Day</button>
+        <button class="vbtn" onclick="setDateView('week',this)">Week</button>
+        <button class="vbtn" onclick="setDateView('twoweek',this)">2 Wk</button>
+        <button class="vbtn" onclick="setDateView('month',this)">Month</button>
+      </div>
+
+      <!-- Date nav -->
+      <div class="date-nav" id="dateNavGroup">
+        <button class="date-arrow" onclick="navDate(-1)">‹</button>
+        <select class="date-select" id="dateFilter" onchange="renderMain()"></select>
+        <button class="date-arrow" onclick="navDate(1)">›</button>
+      </div>
+      <div class="month-nav" id="monthNavGroup" style="display:none">
+        <button class="date-arrow" onclick="navMonth(-1)">‹</button>
+        <span class="month-label" id="monthTitle"></span>
+        <button class="date-arrow" onclick="navMonth(1)">›</button>
+      </div>
+
+      <div class="topbar-right">
+        <div class="filter-pill">
+          <label>🔍</label>
+          <input type="text" id="searchFilter" placeholder="Search..." oninput="renderMain()">
+        </div>
+        <div class="filter-pill">
+          <label>Status</label>
+          <select id="statusFilter" onchange="renderMain()">
+            <option value="">All</option>
+            <option value="available">Available</option>
+            <option value="busy">Booked</option>
+            <option value="partial">Partial</option>
+            <option value="blocked">Blocked</option>
+            <option value="changed">Changed</option>
+          </select>
+        </div>
+        <div class="filter-pill">
+          <label>Role</label>
+          <select id="roleFilter" onchange="renderMain()">
+            <option value="">All</option>
+            <option value="supervisor">Supervisors</option>
+            <option value="installer">Installers</option>
+          </select>
+        </div>
+        <button class="fa-toggle-btn" id="faToggleBtn" onclick="toggleFAPanel()">🔎 Find Availability</button>
+      </div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div class="content-area">
+
+      <!-- MAIN PANEL -->
+      <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+          <div class="stat-chip">
+            <div class="stat-chip-dot" style="background:var(--available)"></div>
+            <div class="stat-chip-val" id="statAvail">0</div>
+            <div class="stat-chip-lbl">Available</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-dot" style="background:var(--busy)"></div>
+            <div class="stat-chip-val" id="statBusy">0</div>
+            <div class="stat-chip-lbl">Booked</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-dot" style="background:var(--partial)"></div>
+            <div class="stat-chip-val" id="statPartial">0</div>
+            <div class="stat-chip-lbl">Partial</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-dot" style="background:var(--blocked)"></div>
+            <div class="stat-chip-val" id="statBlocked">0</div>
+            <div class="stat-chip-lbl">Blocked</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-dot" style="background:var(--changed)"></div>
+            <div class="stat-chip-val" id="statChanged">0</div>
+            <div class="stat-chip-lbl">Changed</div>
+          </div>
+        </div>
+
+        <div class="main-panel" id="mainPanel">
+          <!-- Grid -->
+          <div id="viewGrid">
+            <div class="installer-grid" id="installerGrid"></div>
+            <div id="noResults" class="empty-state" style="display:none"><div class="empty-icon">🔍</div><p>No installers match your filters</p></div>
+          </div>
+          <!-- Month -->
+          <div id="viewMonthEl" style="display:none">
+            <div class="month-grid" id="monthGrid"></div>
+          </div>
+          <!-- Available -->
+          <div id="viewAvailable" style="display:none">
+            <div class="installer-grid" id="availGrid"></div>
+            <div id="noAvail" class="empty-state" style="display:none"><div class="empty-icon">🗓️</div><p>No fully available installers for this date</p></div>
+          </div>
+          <!-- Changes -->
+          <div id="viewChanges" style="display:none">
+            <div id="noChangesNote" style="display:none;padding:12px 16px;background:var(--partial-bg);border:1px solid var(--partial-border);border-radius:8px;font-size:12px;color:var(--partial);margin-bottom:14px;">No previous data — changes will be detected automatically tomorrow.</div>
+            <div class="changes-wrap">
+              <table class="changes-table">
+                <thead><tr><th>Installer</th><th>Type</th><th>Field</th><th>Detail</th><th>Modified By</th></tr></thead>
+                <tbody id="changesBody"></tbody>
+              </table>
+              <div id="noChangesEmpty" class="empty-state" style="display:none"><div class="empty-icon">✅</div><p>No changes detected since last session</p></div>
+            </div>
+          </div>
+          <!-- Hidden -->
+          <div id="viewHidden" style="display:none">
+            <div class="installer-grid" id="hiddenGrid"></div>
+            <div id="noHidden" class="empty-state"><div class="empty-icon">👁</div><p>No hidden resources — use Manage Resources to hide installers</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIND AVAILABILITY PANEL (toggleable) -->
+      <div class="fa-panel" id="faPanel">
+        <div class="fa-panel-head">
+          <div style="flex:1">
+            <h3>🔎 Find Availability</h3>
+            <p>Search for open windows across all installers</p>
+          </div>
+          <button onclick="toggleFAPanel()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;color:var(--text-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+        </div>
+        <div class="fa-form">
+          <div class="fa-field">
+            <label>Job Duration (days)</label>
+            <div class="fa-stepper">
+              <button class="fa-step-btn" onclick="stepDays(-1)">−</button>
+              <div class="fa-step-val" id="daysValue">1</div>
+              <button class="fa-step-btn" onclick="stepDays(1)">+</button>
+            </div>
+          </div>
+          <div class="fa-two-col">
+            <div class="fa-field">
+              <label>Work Type</label>
+              <select id="faWorkType"><option value="">Any</option></select>
+            </div>
+            <div class="fa-field">
+              <label>Role</label>
+              <select id="faRole">
+                <option value="">All</option>
+                <option value="installer">Installers</option>
+                <option value="supervisor">Supervisors</option>
+              </select>
+            </div>
+          </div>
+          <div class="fa-two-col">
+            <div class="fa-field">
+              <label>From</label>
+              <input type="date" id="faStartDate">
+            </div>
+            <div class="fa-field">
+              <label>To</label>
+              <input type="date" id="faEndDate">
+            </div>
+          </div>
+          <button class="fa-search-btn" onclick="runFindAvail()">Search</button>
+        </div>
+        <div class="fa-results" id="faResults">
+          <div class="fa-empty" id="faEmpty">
+            <div class="fa-empty-icon">📅</div>
+            <p>Set your criteria above and hit Search to find open windows.</p>
+          </div>
+          <div id="faResultsInner" style="display:none"></div>
+        </div>
+      </div>
+
+    </div><!-- end content-area -->
+  </div><!-- end main -->
+</div><!-- end app -->
+
+<!-- MANAGE OVERLAY -->
+<div class="overlay" id="manageOverlay" onclick="closeManageIfOutside(event)">
+  <div class="manage-panel">
+    <div class="manage-head">
+      <div>
+        <h2>Manage Resources</h2>
+        <p>Uncheck installers to hide them from all views</p>
+      </div>
+      <button class="manage-close" onclick="closeManage()">✕</button>
+    </div>
+    <div class="manage-search-bar">
+      <input type="text" id="manageSearch" placeholder="Search resources..." oninput="renderManageList()">
+    </div>
+    <div class="manage-actions-bar">
+      <button class="manage-action" onclick="showAll()">Show All</button>
+      <button class="manage-action" onclick="hideAll()">Hide All</button>
+    </div>
+    <div class="manage-list" id="manageList"></div>
+    <div class="manage-foot">
+      <p id="manageCount">0 hidden</p>
+      <button class="btn-primary" onclick="applyManage()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let hiddenInstallers = new Set(), pendingHidden = new Set();
+let allInstallers = [], todayJobs = [], todayBlocks = [], yesterdayJobs = [], yesterdayBlocks = [], changes = [];
+let filesLoaded = {1:false,2:false}, rawData = {1:null,2:null};
+let currentMainView = 'grid', currentDateView = 'day', currentMonthDate = new Date(), sortedDates = [];
+let jobDays = 1;
+
+// ── GITHUB GIST SHARING ──
+// Token is stored in localStorage (never hardcoded) — enter it once via the Publish button
+let GIST_TOKEN = localStorage.getItem('inst_gist_token') || '';
+const GIST_ID   = 'bd1c321199dd175dacc2317d810b8738'; // public gist — no token needed to read
+const GIST_FILE = 'installer-dashboard.json';
+
+// ── GOOGLE SHEETS CHANGE LOG ──
+const SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbylDSJIZ2w5mPfudMbmQ7Z4Tp_eFYhXh7NxtRojpEvjrAkpQxSzB9iBFS3bZXU-Z1mRCw/exec';
+
+// ── ROLE DEFINITIONS ──
+const SUPERVISORS = ['larry westbrook','matt hegenderfer','adam kottenstette'];
+function getRole(name) { return SUPERVISORS.some(s => name.toLowerCase().includes(s)) ? 'supervisor' : 'installer'; }
+const ROLE_BADGE = {
+  supervisor: { label:'SUPERVISOR', bg:'#eff6ff', color:'#2563eb', border:'#bfdbfe' },
+  installer:  { label:'INSTALLER',  bg:'#f0fdf4', color:'#16a34a', border:'#bbf7d0' }
+};
+
+// ── FILE LOADING ──
+function handleDrag(e,n){ e.preventDefault(); document.getElementById('card'+n).classList.add('drag-over'); }
+function handleDragLeave(n){ document.getElementById('card'+n).classList.remove('drag-over'); }
+function handleDrop(e,n){ e.preventDefault(); document.getElementById('card'+n).classList.remove('drag-over'); if(e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0],n); }
+function loadFile(e,n){ if(e.target.files[0]) processFile(e.target.files[0],n); }
+
+function processFile(file,n){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let data;
+      const content = e.target.result;
+      if(typeof content==='string'&&content.includes('<table')) data=parseHTMLTable(content);
+      else { const wb=XLSX.read(content,{type:'binary'}); data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}); }
+      rawData[n]=data; filesLoaded[n]=true;
+      document.getElementById('card'+n).classList.add('loaded');
+      document.getElementById('status'+n).textContent='✓';
+      document.getElementById('fileName'+n).textContent='✓ '+file.name;
+      if(filesLoaded[1]&&filesLoaded[2]) document.getElementById('buildBtn').disabled=false;
+    } catch(err){ alert('Error reading file: '+err.message); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function parseHTMLTable(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const table=doc.querySelector('table'); if(!table) return [];
+  const rows=table.querySelectorAll('tr');
+  const headers=[...rows[0].querySelectorAll('td,th')].map(c=>c.textContent.trim());
+  const result=[];
+  for(let i=1;i<rows.length;i++){
+    const cells=[...rows[i].querySelectorAll('td,th')].map(c=>c.textContent.trim());
+    if(!cells.some(Boolean)) continue;
+    const obj={}; headers.forEach((h,j)=>obj[h]=cells[j]||''); result.push(obj);
+  }
+  return result;
+}
+
+// ── BUILD DASHBOARD ──
+function buildDashboard(){
+  todayJobs=(rawData[1]||[]).map(r=>({
+    installer:(r['Assigned Resource']||r['Name']||'').trim(),
+    date:parseDate(r['Scheduled Start']||r['Start Time']||''),
+    dateStr:formatDate(parseDate(r['Scheduled Start']||r['Start Time']||'')),
+    time:formatTime(r['Scheduled Start']||r['Start Time']||''),
+    subject:r['Subject']||'',workType:r['Work Type']||'',
+    apptNum:r['Appointment Number']||'',modifiedBy:r['Last Modified By']||'',
+    key:(r['Appointment Number']||r['Work Order Number']||'')+'|'+(r['Assigned Resource']||'')
+  })).filter(j=>j.installer&&j.date);
+
+  todayBlocks=[];
+  (rawData[2]||[]).forEach(r=>{
+    const installer=(r['Name']||r['Assigned Resource']||'').trim();
+    const start=parseDate(r['Start Time']||r['Scheduled Start']||'');
+    const end=parseDate(r['End Time']||r['Scheduled End']||'');
+    if(!installer||!start) return;
+    const blockEnd=end||start;
+    const cur=new Date(start); cur.setHours(0,0,0,0);
+    const last=new Date(blockEnd); last.setHours(23,59,59,999);
+    while(cur<=last){
+      todayBlocks.push({
+        installer,start:new Date(start),end:new Date(blockEnd),
+        startStr:formatDate(new Date(cur)),
+        startTime:formatTime(r['Start Time']||r['Scheduled Start']||''),
+        endTime:formatTime(r['End Time']||r['Scheduled End']||''),
+        type:r['Record Type']||'Non Availability'
+      });
+      cur.setDate(cur.getDate()+1);
+    }
+  });
+
+  // localStorage: load yesterday, save today
+  const todayKey=new Date().toISOString().slice(0,10);
+  yesterdayJobs=[]; yesterdayBlocks=[]; let storedDate=null;
+  try {
+    const stored=localStorage.getItem('instDash_v2');
+    if(stored){
+      const snap=JSON.parse(stored); storedDate=snap.date;
+      if(snap.date!==todayKey){
+        yesterdayJobs=(snap.jobs||[]).map(j=>({...j,date:j.date?new Date(j.date):null}));
+        yesterdayBlocks=(snap.blocks||[]).filter((b,i,arr)=>arr.findIndex(x=>x.installer===b.installer&&x.startStr===b.startStr)===i)
+          .map(b=>({...b,start:b.start?new Date(b.start):null,end:b.end?new Date(b.end):null}));
+      }
+    }
+    localStorage.setItem('instDash_v2',JSON.stringify({
+      date:todayKey,
+      jobs:todayJobs.map(j=>({...j,date:j.date?j.date.toISOString():null})),
+      blocks:todayBlocks.map(b=>({...b,start:b.start?b.start.toISOString():null,end:b.end?b.end.toISOString():null}))
+    }));
+  } catch(e){}
+
+  const banner=document.getElementById('storageBanner');
+  if(storedDate&&storedDate!==todayKey){
+    banner.className='storage-banner show';
+    banner.textContent=`🔄 Auto-comparing with ${storedDate} snapshot — changes detected`;
+  } else {
+    banner.className='storage-banner show';
+    banner.textContent=`✓ Snapshot saved — changes will be tracked automatically next session`;
+    setTimeout(()=>banner.classList.remove('show'),5000);
+  }
+
+  const instSet=new Set([...todayJobs.map(j=>j.installer),...todayBlocks.map(b=>b.installer)]);
+  allInstallers=[...instSet].sort();
+
+  const dateSet=new Set(todayJobs.map(j=>j.dateStr).filter(Boolean));
+  todayBlocks.forEach(b=>b.startStr&&dateSet.add(b.startStr));
+  sortedDates=[...dateSet].sort((a,b)=>new Date(a)-new Date(b));
+  const sel=document.getElementById('dateFilter');
+  sel.innerHTML='';
+  sortedDates.forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o); });
+  const today=new Date(); today.setHours(0,0,0,0);
+  const nearest=sortedDates.find(d=>new Date(d)>=today)||sortedDates[0]||'';
+  if(nearest){ sel.value=nearest; currentMonthDate=new Date(nearest); }
+
+  const faWt = document.getElementById('faWorkType');
+  faWt.innerHTML = `<option value="">Any</option>
+    <option value="install">Install</option>
+    <option value="install_recovery">Install Recovery</option>
+    <option value="site_inspection">Site Inspection</option>
+    <option value="other">Other</option>`;
+  document.getElementById('faStartDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('faEndDate').value=new Date(Date.now()+60*864e5).toISOString().slice(0,10);
+
+  detectChanges();
+
+  document.getElementById('loadInfo').textContent=`${todayJobs.length} appts · ${todayBlocks.length} blocks`;
+  document.getElementById('uploadScreen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('publishBtn').style.display='';
+
+  renderMain();
+}
+
+// ── CHANGE DETECTION ──
+function detectChanges(){
+  changes=[];
+  if(!yesterdayJobs.length&&!yesterdayBlocks.length) return;
+  const yKeys=new Set(yesterdayJobs.map(j=>j.key)), tKeys=new Set(todayJobs.map(j=>j.key));
+  todayJobs.forEach(j=>{ if(!yKeys.has(j.key)) changes.push({installer:j.installer,type:'added',field:'Appointment',detail:`${j.subject} (${j.workType}) @ ${j.time} on ${j.dateStr}`,modifiedBy:j.modifiedBy}); });
+  yesterdayJobs.forEach(j=>{ if(!tKeys.has(j.key)) changes.push({installer:j.installer,type:'removed',field:'Appointment',detail:`${j.subject} (${j.workType}) @ ${j.time} on ${j.dateStr}`,modifiedBy:j.modifiedBy}); });
+  todayJobs.forEach(tj=>{ const yj=yesterdayJobs.find(y=>y.key===tj.key); if(yj&&yj.modifiedBy!==tj.modifiedBy) changes.push({installer:tj.installer,type:'modified',field:'Modified By',detail:`"${tj.subject}" — was: ${yj.modifiedBy||'?'} → now: ${tj.modifiedBy||'?'}`,modifiedBy:tj.modifiedBy}); });
+  const yBS=new Set(yesterdayBlocks.map(b=>b.installer+'|'+b.startStr));
+  todayBlocks.forEach(b=>{ if(!yBS.has(b.installer+'|'+b.startStr)) changes.push({installer:b.installer,type:'added',field:'Time Block',detail:`${b.startStr} ${b.startTime}–${b.endTime}`,modifiedBy:'—'}); });
+  const tBS=new Set(todayBlocks.map(b=>b.installer+'|'+b.startStr));
+  yesterdayBlocks.forEach(b=>{ if(!tBS.has(b.installer+'|'+b.startStr)) changes.push({installer:b.installer,type:'removed',field:'Time Block',detail:`${b.startStr} ${b.startTime}–${b.endTime}`,modifiedBy:'—'}); });
+}
+
+// ── NAV ──
+function switchView(view, el){
+  currentMainView=view;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const titles={grid:'Grid View',available:'Available Only',changes:'Changes Log',hidden:'Hidden Resources'};
+  document.getElementById('viewTitle').textContent=titles[view]||'';
+  const showViewSwitcher=view==='grid';
+  document.getElementById('viewSwitcher').style.display=showViewSwitcher?'':'none';
+  renderMain();
+}
+
+function setDateView(dv, el){
+  currentDateView=dv;
+  document.querySelectorAll('.vbtn').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('dateNavGroup').style.display=dv==='month'?'none':'flex';
+  document.getElementById('monthNavGroup').style.display=dv==='month'?'flex':'none';
+  renderMain();
+}
+
+function navDate(dir){
+  const sel=document.getElementById('dateFilter');
+  const idx=sortedDates.indexOf(sel.value);
+  const step=currentDateView==='twoweek'?10:currentDateView==='week'?5:1;
+  const next=Math.max(0,Math.min(sortedDates.length-1,idx+dir*step));
+  sel.value=sortedDates[next]||sel.value;
+  renderMain();
+}
+
+function navMonth(dir){
+  currentMonthDate=new Date(currentMonthDate.getFullYear(),currentMonthDate.getMonth()+dir,1);
+  renderMain();
+}
+
+// ── DATA HELPERS ──
+function buildMap(ds){
+  const jobs=ds?todayJobs.filter(j=>j.dateStr===ds):todayJobs;
+  const blocks=ds?todayBlocks.filter(b=>b.startStr===ds):todayBlocks;
+  const changedSet=new Set(changes.map(c=>c.installer));
+  const map={};
+  allInstallers.forEach(inst=>{ map[inst]={installer:inst,jobs:[],blocks:[],changed:changedSet.has(inst)}; });
+  jobs.forEach(j=>{ if(map[j.installer]) map[j.installer].jobs.push(j); });
+  blocks.forEach(b=>{ if(map[b.installer]) map[b.installer].blocks.push(b); });
+  Object.values(map).forEach(d=>{ const hj=d.jobs.length>0,hb=d.blocks.length>0; d.status=hj&&hb?'partial':hj?'busy':hb?'blocked':'available'; });
+  return map;
+}
+
+function applyFilters(vals){
+  const search=document.getElementById('searchFilter').value.toLowerCase();
+  const sf=document.getElementById('statusFilter').value;
+  const rf=document.getElementById('roleFilter').value;
+  return vals.filter(d=>{
+    if(hiddenInstallers.has(d.installer)) return false;
+    if(search&&!d.installer.toLowerCase().includes(search)) return false;
+    if(rf&&getRole(d.installer)!==rf) return false;
+    if(sf==='changed') return d.changed;
+    if(sf&&sf!==d.status) return false;
+    return true;
+  });
+}
+
+function sortVals(vals){ return [...vals].sort((a,b)=>{ if(a.changed&&!b.changed)return -1; if(!a.changed&&b.changed)return 1; return({available:0,partial:1,busy:2,blocked:3}[a.status]||0)-({available:0,partial:1,busy:2,blocked:3}[b.status]||0); }); }
+
+// ── GET DATES IN CURRENT VIEW WINDOW ──
+function getViewDates() {
+  const df = document.getElementById('dateFilter').value;
+  if (currentDateView === 'day') return df ? [df] : sortedDates;
+
+  // Build weekday list from anchor
+  const anchor = df ? new Date(df) : new Date();
+  anchor.setHours(0,0,0,0);
+  const numDays = currentDateView === 'twoweek' ? 10 : 5;
+  const startDay = new Date(anchor);
+  if (numDays === 5) { const dow = startDay.getDay(); startDay.setDate(startDay.getDate() + (dow === 0 ? -6 : 1 - dow)); }
+  const cols = []; let d = new Date(startDay);
+  while (cols.length < numDays) { if (d.getDay() !== 0 && d.getDay() !== 6) cols.push(formatDate(new Date(d))); d.setDate(d.getDate() + 1); }
+  return cols;
+
+  // Month handled separately in stats
+}
+
+function getMonthDates() {
+  const m = currentMonthDate.getMonth(), y = currentMonthDate.getFullYear();
+  const days = new Date(y, m + 1, 0).getDate();
+  const dates = [];
+  for (let i = 1; i <= days; i++) {
+    const cd = new Date(y, m, i);
+    if (cd.getDay() !== 0 && cd.getDay() !== 6) dates.push(formatDate(cd));
+  }
+  return dates;
+}
+
+// ── COMPUTE AGGREGATE STATS ACROSS DATES ──
+// Returns { installer: {avail,busy,partial,blocked}, supervisor: {avail,busy,blocked} }
+function computeStats(dates) {
+  const rf = document.getElementById('roleFilter').value;
+  const search = document.getElementById('searchFilter').value.toLowerCase();
+
+  const visible = allInstallers.filter(inst => {
+    if (hiddenInstallers.has(inst)) return false;
+    if (search && !inst.toLowerCase().includes(search)) return false;
+    if (rf && getRole(inst) !== rf) return false;
+    return true;
+  });
+
+  const instVisible = visible.filter(i => getRole(i) === 'installer');
+  const supVisible  = visible.filter(i => getRole(i) === 'supervisor');
+
+  function tallyOne(date, subset) {
+    const map = buildMap(date);
+    let avail = 0, busy = 0, partial = 0, blocked = 0;
+    subset.forEach(inst => {
+      const d = map[inst];
+      if (!d || d.status === 'available') avail++;
+      else if (d.status === 'busy') busy++;
+      else if (d.status === 'partial') partial++;
+      else if (d.status === 'blocked') blocked++;
+    });
+    return { avail, busy, partial, blocked };
+  }
+
+  function tallyMulti(dates, subset) {
+    const data = {};
+    subset.forEach(inst => { data[inst] = { hasFreeDay: false, hasJob: false, hasBlock: false }; });
+    dates.forEach(ds => {
+      const map = buildMap(ds);
+      subset.forEach(inst => {
+        const d = map[inst];
+        if (!d || d.status === 'available') { data[inst].hasFreeDay = true; return; }
+        if (d.jobs.length > 0) data[inst].hasJob = true;
+        if (d.blocks.length > 0) data[inst].hasBlock = true;
+      });
+    });
+    let avail = 0, busy = 0, partial = 0, blocked = 0;
+    Object.values(data).forEach(s => {
+      if (s.hasFreeDay) avail++;
+      if (s.hasJob) busy++;
+      if (s.hasBlock && !s.hasJob) blocked++;
+    });
+    return { avail, busy, partial, blocked };
+  }
+
+  const tally = dates.length === 1 ? tallyOne : tallyMulti;
+  const instStats = tally(dates.length === 1 ? dates[0] : dates, instVisible);
+  const supStats  = tally(dates.length === 1 ? dates[0] : dates, supVisible);
+
+  // Combined (for backwards compat with anything that uses .avail etc.)
+  return {
+    avail: instStats.avail, busy: instStats.busy, partial: instStats.partial, blocked: instStats.blocked,
+    installer: instStats,
+    supervisor: supStats
+  };
+}
+
+// ── MAIN RENDER ──
+function renderMain(){
+  const df = document.getElementById('dateFilter').value;
+
+  // Compute stats based on current view scope
+  let statDates;
+  if (currentMainView === 'grid' && currentDateView === 'month') statDates = getMonthDates();
+  else if (currentMainView === 'grid' && currentDateView !== 'day') statDates = getViewDates();
+  else statDates = df ? [df] : sortedDates;
+
+  const stats = computeStats(statDates);
+  const changedCount = new Set(changes.map(c => c.installer)).size;
+
+  // Sidebar stats panel — installers
+  document.getElementById('sideStatAvail').textContent = stats.installer.avail;
+  document.getElementById('sideStatBusy').textContent = stats.installer.busy;
+  document.getElementById('sideStatPartial').textContent = stats.installer.partial;
+  document.getElementById('sideStatBlocked').textContent = stats.installer.blocked;
+  document.getElementById('sideStatChanged').textContent = changedCount;
+  // Sidebar stats panel — supervisors
+  document.getElementById('sideStatSupAvail').textContent = stats.supervisor.avail;
+  document.getElementById('sideStatSupBusy').textContent = stats.supervisor.busy;
+  document.getElementById('sideStatSupBlocked').textContent = stats.supervisor.blocked;
+
+  // Sidebar load info (compact summary)
+  document.getElementById('sidebarStats').textContent = `${stats.avail} avail · ${stats.busy + stats.partial + stats.blocked} busy`;
+
+  // Badges
+  const cb = document.getElementById('changesBadge');
+  cb.textContent = changes.length; cb.style.display = changes.length ? 'inline' : 'none';
+  const hb = document.getElementById('hiddenBadge');
+  hb.textContent = hiddenInstallers.size; hb.style.display = hiddenInstallers.size ? 'inline' : 'none';
+
+  // Show/hide panels
+  ['viewGrid','viewMonthEl','viewAvailable','viewChanges','viewHidden'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('statsRow').style.display = 'none'; // stats moved to sidebar
+
+  const map = buildMap(df);
+  const allVals = Object.values(map);
+
+  if (currentMainView === 'grid') {
+    if (currentDateView === 'day') renderListDayView(map, df);
+    else if (currentDateView === 'week') renderWeekCardView(df, 5);
+    else if (currentDateView === 'twoweek') renderWeekCardView(df, 10);
+    else if (currentDateView === 'month') renderMonthView();
+  } else if (currentMainView === 'available') {
+    document.getElementById('viewAvailable').style.display = '';
+    const avVals = sortVals(applyFilters(allVals)).filter(d => d.status === 'available');
+    const ag = document.getElementById('availGrid'); ag.innerHTML = '';
+    document.getElementById('noAvail').style.display = avVals.length ? 'none' : 'block';
+    avVals.forEach(d => ag.appendChild(buildCard(d)));
+  } else if (currentMainView === 'changes') {
+    document.getElementById('viewChanges').style.display = '';
+    renderChanges(df);
+  } else if (currentMainView === 'hidden') {
+    document.getElementById('viewHidden').style.display = '';
+    const hv = allVals.filter(d => hiddenInstallers.has(d.installer));
+    const hg = document.getElementById('hiddenGrid'); hg.innerHTML = '';
+    document.getElementById('noHidden').style.display = hv.length ? 'none' : 'block';
+    hv.forEach(d => {
+      const card = buildCard(d);
+      const btn = document.createElement('button');
+      btn.textContent = '↩ Restore';
+      btn.style.cssText = 'margin-top:8px;width:100%;padding:5px;border:1px solid var(--border);border-radius:5px;background:var(--bg);font-size:11px;font-weight:500;color:var(--text-3);cursor:pointer;font-family:DM Sans,sans-serif;';
+      btn.onclick = () => { hiddenInstallers.delete(d.installer); renderMain(); };
+      card.querySelector('.card-body').appendChild(btn);
+      hg.appendChild(card);
+    });
+  }
+}
+
+function renderDayView(map, df){
+  document.getElementById('viewGrid').style.display='';
+  document.getElementById('noResults').style.display='none';
+  const filtered = sortVals(applyFilters(Object.values(map)));
+  const scheduled = filtered.filter(d => d.jobs.length > 0);
+  const blocked   = filtered.filter(d => d.jobs.length === 0 && d.blocks.length > 0);
+  const available = filtered.filter(d => d.jobs.length === 0 && d.blocks.length === 0);
+  const grid = document.getElementById('installerGrid');
+  grid.innerHTML = '';
+
+  function addSection(label, color, items, emptyMsg) {
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:16px;margin-bottom:10px;';
+    hdr.innerHTML = `
+      <div style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0"></div>
+      <span style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.08em">${label}</span>
+      <span style="font-size:11px;font-weight:600;color:var(--text-4);background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 8px;">${items.length}</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>`;
+    grid.appendChild(hdr);
+    if (items.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'grid-column:1/-1;padding:6px 0 4px;font-size:12px;color:var(--text-4);font-style:italic;';
+      empty.textContent = emptyMsg;
+      grid.appendChild(empty);
+    } else {
+      items.forEach(d => grid.appendChild(buildCard(d)));
+    }
+  }
+
+  addSection('Scheduled', 'var(--busy)', scheduled, 'No one scheduled for this date');
+  addSection('Time Blocked', 'var(--blocked)', blocked, 'No time blocks for this date');
+  addSection('Available to Schedule', 'var(--available)', available, 'No fully available installers');
+}
+
+// ── LIST DAY VIEW ──
+function renderListDayView(map, df) {
+  document.getElementById('viewGrid').style.display = '';
+  document.getElementById('noResults').style.display = 'none';
+  const filtered = sortVals(applyFilters(Object.values(map)));
+  const scheduled = filtered.filter(d => d.jobs.length > 0);
+  const blocked   = filtered.filter(d => d.jobs.length === 0 && d.blocks.length > 0);
+  const available = filtered.filter(d => d.jobs.length === 0 && d.blocks.length === 0);
+
+  const grid = document.getElementById('installerGrid');
+  grid.style.display = 'block';
+  grid.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.className = 'installer-list';
+
+  function addListSection(label, dotColor, items, emptyMsg) {
+    const hdr = document.createElement('div');
+    hdr.className = 'list-section-hdr';
+    hdr.innerHTML = `<div class="list-section-dot" style="background:${dotColor}"></div><span>${label}</span><span class="list-section-count">${items.length}</span>`;
+    list.appendChild(hdr);
+    if (items.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding:9px 16px 9px 24px;font-size:12px;color:var(--text-4);font-style:italic;border-bottom:1px solid var(--border);';
+      empty.textContent = emptyMsg;
+      list.appendChild(empty);
+    } else {
+      items.forEach(d => list.appendChild(buildListRow(d)));
+    }
+  }
+
+  addListSection('Scheduled', 'var(--busy)', scheduled, 'No one scheduled for this date');
+  addListSection('Time Blocked', 'var(--blocked)', blocked, 'No time blocks for this date');
+  addListSection('Available', 'var(--available)', available, 'No fully available installers');
+
+  grid.appendChild(list);
+}
+
+function buildListRow(d) {
+  const role = getRole(d.installer);
+  const rb = ROLE_BADGE[role];
+  const initials = d.installer.split(' ').filter((w,i) => i < 2).map(w => w[0]).join('').toUpperCase();
+  const avatarColors = ['#bbf7d0','#fecaca','#fde68a','#bfdbfe','#ddd6fe','#fbcfe8'];
+  const avatarFg    = ['#16a34a','#dc2626','#d97706','#2563eb','#7c3aed','#be185d'];
+  const idx = Math.abs((d.installer.charCodeAt(0)||0)+(d.installer.charCodeAt(1)||0)) % avatarColors.length;
+  const stripeColor = {available:'var(--available)',busy:'var(--busy)',partial:'var(--partial)',blocked:'var(--blocked)'}[d.status] || 'var(--border)';
+  const statusLabel = {available:'Available',busy:'Booked',partial:'Partial',blocked:'Blocked'}[d.status];
+  const statusClass = {available:'status-available',busy:'status-busy',partial:'status-partial',blocked:'status-blocked'}[d.status];
+
+  const row = document.createElement('div');
+  row.className = 'list-row' + (d.changed ? ' changed' : '');
+
+  const stripe = document.createElement('div');
+  stripe.className = 'list-status-stripe';
+  stripe.style.background = stripeColor;
+  row.appendChild(stripe);
+
+  const avatar = document.createElement('div');
+  avatar.className = 'list-avatar';
+  avatar.style.cssText = `background:${avatarColors[idx]};color:${avatarFg[idx]}`;
+  avatar.textContent = initials;
+  row.appendChild(avatar);
+
+  const nameCol = document.createElement('div');
+  nameCol.className = 'list-name-col';
+  nameCol.innerHTML = `
+    <div class="list-name">${d.installer}</div>
+    <div class="list-name-sub">
+      <span class="role-badge" style="background:${rb.bg};color:${rb.color};border:1px solid ${rb.border}">${rb.label}</span>
+      ${d.changed ? '<span class="changed-chip">Changed</span>' : ''}
+    </div>`;
+  row.appendChild(nameCol);
+
+  const statusCol = document.createElement('div');
+  statusCol.className = 'list-status-col';
+  statusCol.innerHTML = `<span class="status-indicator ${statusClass}">${statusLabel}</span>`;
+  row.appendChild(statusCol);
+
+  const jobsCol = document.createElement('div');
+  jobsCol.className = 'list-jobs-col';
+
+  if (!d.jobs.length && !d.blocks.length) {
+    jobsCol.innerHTML = '<span class="list-avail-msg">✓ Available all day</span>';
+  } else {
+    d.jobs.slice(0, 3).forEach(j => {
+      const wt = j.workType || '';
+      let bc = 'badge-other', bl = 'Other';
+      if (/^install\s*-/i.test(wt))                                     { bc = 'badge-install';   bl = 'Install'; }
+      else if (/^install recovery$/i.test(wt)||/^recovery\s*-/i.test(wt)) { bc = 'badge-recovery'; bl = 'Recovery'; }
+      else if (/^site inspection/i.test(wt))                             { bc = 'badge-service';  bl = 'Inspection'; }
+      const chip = document.createElement('div');
+      chip.className = 'list-job-chip';
+      chip.innerHTML = `<span class="list-job-time">${j.time}</span><span class="list-job-subj">${truncate(j.subject,32)}</span><span class="wtype-badge ${bc}">${bl}</span>`;
+      jobsCol.appendChild(chip);
+    });
+    if (d.jobs.length > 3) {
+      const more = document.createElement('span');
+      more.className = 'list-more';
+      more.textContent = `+${d.jobs.length - 3} more`;
+      jobsCol.appendChild(more);
+    }
+    d.blocks.forEach(b => {
+      const chip = document.createElement('div');
+      chip.className = 'list-block-chip';
+      chip.innerHTML = `<span class="block-label">Blocked</span><span>${b.startTime}–${b.endTime}</span>`;
+      jobsCol.appendChild(chip);
+    });
+  }
+  row.appendChild(jobsCol);
+  return row;
+}
+
+// ── WEEK / 2-WEEK CARD VIEW ── (cards grouped by day with sections)
+function renderWeekCardView(anchorDate, numDays) {
+  document.getElementById('viewGrid').style.display = '';
+  document.getElementById('noResults').style.display = 'none';
+  const grid = document.getElementById('installerGrid');
+  grid.style.display = ''; // reset from list view
+  grid.innerHTML = '';
+
+  const anchor = anchorDate ? new Date(anchorDate) : new Date(); anchor.setHours(0,0,0,0);
+  const startDay = new Date(anchor);
+  if (numDays === 5) { const dow = startDay.getDay(); startDay.setDate(startDay.getDate() + (dow === 0 ? -6 : 1 - dow)); }
+  const cols = []; let d = new Date(startDay);
+  while (cols.length < numDays) { if (d.getDay() !== 0 && d.getDay() !== 6) cols.push(new Date(d)); d.setDate(d.getDate() + 1); }
+  const todayMid = new Date(); todayMid.setHours(0,0,0,0);
+
+  cols.forEach(colDate => {
+    const ds = formatDate(colDate);
+    const map = buildMap(ds);
+    const filtered = sortVals(applyFilters(Object.values(map)));
+    const scheduled = filtered.filter(d => d.jobs.length > 0);
+    const blocked   = filtered.filter(d => d.jobs.length === 0 && d.blocks.length > 0);
+    const available = filtered.filter(d => d.jobs.length === 0 && d.blocks.length === 0);
+    const isToday   = colDate.getTime() === todayMid.getTime();
+
+    // Day divider header
+    const dayHdr = document.createElement('div');
+    dayHdr.style.cssText = 'grid-column:1/-1;display:flex;align-items:center;gap:12px;margin-top:20px;margin-bottom:12px;';
+    const dayLabel = colDate.toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
+    dayHdr.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:${isToday ? 'var(--accent)' : 'var(--text)'};letter-spacing:-0.02em;">
+        ${dayLabel}${isToday ? ' <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--accent-light);color:var(--accent);vertical-align:middle;margin-left:4px;">Today</span>' : ''}
+      </div>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:11px;color:var(--available);font-weight:600;">${available.length} avail</span>
+      <span style="font-size:11px;color:var(--busy);font-weight:600;">${scheduled.length} sched</span>
+      <span style="font-size:11px;color:var(--blocked);font-weight:600;">${blocked.length} blocked</span>`;
+    grid.appendChild(dayHdr);
+
+    if (filtered.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'grid-column:1/-1;font-size:12px;color:var(--text-4);font-style:italic;padding:4px 0 8px;';
+      empty.textContent = 'No data for this date';
+      grid.appendChild(empty);
+    } else {
+      // Scheduled subsection
+      if (scheduled.length) {
+        addSubSection(grid, 'Scheduled', 'var(--busy)', scheduled);
+      }
+      if (blocked.length) {
+        addSubSection(grid, 'Time Blocked', 'var(--blocked)', blocked);
+      }
+      if (available.length) {
+        addSubSection(grid, 'Available', 'var(--available)', available);
+      }
+    }
+  });
+}
+
+function addSubSection(grid, label, color, items) {
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-bottom:8px;margin-top:4px;';
+  hdr.innerHTML = `
+    <div style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></div>
+    <span style="font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:0.08em;">${label}</span>
+    <span style="font-size:10px;color:var(--text-4);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0 6px;">${items.length}</span>`;
+  grid.appendChild(hdr);
+  items.forEach(d => grid.appendChild(buildCard(d)));
+}
+
+function renderMonthView(){
+  document.getElementById('viewMonthEl').style.display='';
+  const mg=document.getElementById('monthGrid'); mg.innerHTML='';
+  const m=currentMonthDate.getMonth(),y=currentMonthDate.getFullYear();
+  document.getElementById('monthTitle').textContent=new Date(y,m,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(dw=>{ const h=document.createElement('div'); h.className='cal-dow'; h.textContent=dw; mg.appendChild(h); });
+  const firstDay=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();
+  const todayMid=new Date(); todayMid.setHours(0,0,0,0);
+  for(let i=0;i<firstDay;i++){ const e=document.createElement('div'); e.className='cal-cell empty'; mg.appendChild(e); }
+  for(let day=1;day<=days;day++){
+    const cd=new Date(y,m,day); const ds=formatDate(cd);
+    const isWknd=cd.getDay()===0||cd.getDay()===6; const isToday=cd.getTime()===todayMid.getTime();
+    const vals=applyFilters(Object.values(buildMap(ds)));
+    const total=vals.length,av=vals.filter(v=>v.status==='available').length,
+          bu=vals.filter(v=>v.status==='busy').length,pa=vals.filter(v=>v.status==='partial').length,bl=vals.filter(v=>v.status==='blocked').length;
+    const pct=total?(av/total)*100:0;
+    const barColor=pct>60?'var(--available)':pct>30?'var(--partial)':total?'var(--busy)':'var(--border)';
+    const cell=document.createElement('div');
+    cell.className=`cal-cell${isToday?' today':''}${isWknd?' weekend':''}`;
+    cell.innerHTML=`<div class="cal-day-n">${day}</div>
+      ${total?`<div class="cal-bar" style="background:${barColor};width:${Math.max(pct,8)}%"></div>`:''}
+      <div class="cal-dots">
+        ${av?`<span class="cal-dot" style="background:var(--available-bg);color:var(--available)">${av}✓</span>`:''}
+        ${bu?`<span class="cal-dot" style="background:var(--busy-bg);color:var(--busy)">${bu}✗</span>`:''}
+        ${pa?`<span class="cal-dot" style="background:var(--partial-bg);color:var(--partial)">${pa}~</span>`:''}
+        ${bl?`<span class="cal-dot" style="background:var(--blocked-bg);color:var(--blocked)">${bl}⊘</span>`:''}
+      </div>`;
+    if(!isWknd) cell.onclick=()=>{
+      const sel=document.getElementById('dateFilter');
+      if([...sel.options].some(o=>o.value===ds)) sel.value=ds;
+      setDateView('day', document.querySelector('.vbtn'));
+      document.querySelectorAll('.vbtn').forEach(b=>b.classList.remove('active'));
+      document.querySelector('.vbtn').classList.add('active');
+    };
+    mg.appendChild(cell);
+  }
+}
+
+function renderChanges(df){
+  const hasY=yesterdayJobs.length>0||yesterdayBlocks.length>0;
+  document.getElementById('noChangesNote').style.display=hasY?'none':'block';
+  const filtered=df?changes.filter(c=>c.detail.includes(df)):changes;
+  const tbody=document.getElementById('changesBody'); tbody.innerHTML='';
+  document.getElementById('noChangesEmpty').style.display=(!filtered.length&&hasY)?'block':'none';
+  filtered.forEach(c=>{
+    const labels={added:'Added',removed:'Removed',modified:'Modified'};
+    const classes={added:'cpill-added',removed:'cpill-removed',modified:'cpill-modified'};
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><strong>${c.installer}</strong></td>
+      <td><span class="change-pill ${classes[c.type]}">${labels[c.type]}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${c.field}</td>
+      <td style="font-size:12px;color:var(--text-3)">${c.detail}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-4)">${c.modifiedBy}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── BUILD CARD ──
+function buildCard(d){
+  const role=getRole(d.installer); const rb=ROLE_BADGE[role];
+  const initials=d.installer.split(' ').filter((w,i)=>i<2).map(w=>w[0]).join('').toUpperCase();
+  const avatarColors=['#bbf7d0','#fecaca','#fde68a','#bfdbfe','#ddd6fe','#fbcfe8'];
+  const avatarFg=['#16a34a','#dc2626','#d97706','#2563eb','#7c3aed','#be185d'];
+  const idx=Math.abs((d.installer.charCodeAt(0)||0)+(d.installer.charCodeAt(1)||0))%avatarColors.length;
+  const statusMap={available:'Available',busy:'Booked',partial:'Partial',blocked:'Blocked'};
+  const statusClass={available:'status-available',busy:'status-busy',partial:'status-partial',blocked:'status-blocked'};
+
+  const card=document.createElement('div');
+  card.className='installer-card'+(d.changed?' changed':'');
+  if(role==='supervisor') card.style.borderColor='#bfdbfe';
+
+  let html=`<div class="card-header">
+    <div class="card-avatar" style="background:${avatarColors[idx]};color:${avatarFg[idx]}">${initials}</div>
+    <div class="card-name">
+      ${d.installer}
+      <div class="card-name-sub">
+        <span class="role-badge" style="background:${rb.bg};color:${rb.color};border:1px solid ${rb.border}">${rb.label}</span>
+        ${d.changed?'<span class="changed-chip">Changed</span>':''}
+      </div>
+    </div>
+    <span class="status-indicator ${statusClass[d.status]}">${statusMap[d.status]}</span>
+  </div><div class="card-body">`;
+
+  if(!d.jobs.length&&!d.blocks.length){
+    html+=`<div class="avail-msg">✓ Available all day</div>`;
+  } else {
+    if(d.jobs.length){
+      d.jobs.slice(0,4).forEach(j=>{
+        const wt = j.workType || '';
+        let bc = 'badge-other', bl = 'Other';
+        if (/^install\s*-/i.test(wt)) { bc = 'badge-install'; bl = 'Install'; }
+        else if (/^install recovery$/i.test(wt) || /^recovery\s*-/i.test(wt)) { bc = 'badge-recovery'; bl = 'Install Recovery'; }
+        else if (/^site inspection/i.test(wt)) { bc = 'badge-service'; bl = 'Site Inspection'; }
+        html+=`<div class="job-row">
+          <div class="job-time">${j.time}</div>
+          <div style="flex:1"><div class="job-subj">${truncate(j.subject,45)}</div>${j.modifiedBy?`<div class="job-meta">Modified by ${j.modifiedBy}</div>`:''}</div>
+          <span class="wtype-badge ${bc}">${bl}</span></div>`;
+      });
+      if(d.jobs.length>4) html+=`<div style="font-size:11px;color:var(--text-4);padding:4px 0;font-family:DM Mono,monospace">+${d.jobs.length-4} more</div>`;
+    }
+    if(d.blocks.length){
+      d.blocks.forEach(b=>{
+        html+=`<div class="block-row"><span class="block-label">Blocked</span><span>${b.startTime}–${b.endTime}</span></div>`;
+      });
+    }
+  }
+  html+='</div>';
+  card.innerHTML=html; return card;
+}
+
+// ── MANAGE RESOURCES ──
+function openManage(){ pendingHidden=new Set(hiddenInstallers); renderManageList(); document.getElementById('manageOverlay').classList.add('open'); }
+function closeManage(){ document.getElementById('manageOverlay').classList.remove('open'); }
+function closeManageIfOutside(e){ if(e.target===document.getElementById('manageOverlay')) closeManage(); }
+function renderManageList(){
+  const search=(document.getElementById('manageSearch').value||'').toLowerCase();
+  const list=document.getElementById('manageList'); list.innerHTML='';
+  allInstallers.filter(i=>!search||i.toLowerCase().includes(search)).forEach(inst=>{
+    const vis=!pendingHidden.has(inst);
+    const row=document.createElement('div'); row.className='manage-row'+(vis?' visible':'');
+    row.innerHTML=`<div class="m-check">${vis?'✓':''}</div><div class="m-name">${inst}</div>`;
+    row.onclick=()=>{ if(pendingHidden.has(inst)) pendingHidden.delete(inst); else pendingHidden.add(inst); row.classList.toggle('visible',!pendingHidden.has(inst)); row.querySelector('.m-check').textContent=pendingHidden.has(inst)?'':'✓'; updateManageCount(); };
+    list.appendChild(row);
+  });
+  updateManageCount();
+}
+function updateManageCount(){ document.getElementById('manageCount').textContent=`${pendingHidden.size} hidden`; }
+function applyManage(){ hiddenInstallers=new Set(pendingHidden); closeManage(); renderMain(); }
+function showAll(){ pendingHidden.clear(); renderManageList(); }
+function hideAll(){ allInstallers.forEach(i=>pendingHidden.add(i)); renderManageList(); }
+
+// ── WORK TYPE CLASSIFIER ──
+function classifyWorkType(wt) {
+  if (/^install\s*-/i.test(wt)) return 'install';
+  if (/^install recovery$/i.test(wt) || /^recovery\s*-/i.test(wt)) return 'install_recovery';
+  if (/^site inspection/i.test(wt)) return 'site_inspection';
+  return 'other';
+}
+
+// ── FIND AVAILABILITY PANEL TOGGLE ──
+function toggleFAPanel() {
+  const panel = document.getElementById('faPanel');
+  const btn = document.getElementById('faToggleBtn');
+  const isOpen = panel.classList.contains('open');
+  panel.classList.toggle('open', !isOpen);
+  btn.classList.toggle('active', !isOpen);
+}
+
+// ── FIND AVAILABILITY ──
+function stepDays(d){ jobDays=Math.max(1,Math.min(14,jobDays+d)); document.getElementById('daysValue').textContent=jobDays; }
+function isWeekday(d){ const dow=d.getDay(); return dow>=1&&dow<=5; }
+function dateKey(d){ return d.toISOString().slice(0,10); }
+function isFriToMon(a,b){ return a.getDay()===5&&b.getDay()===1; }
+function isConsecutiveWorkWindow(days){
+  for(let i=0;i<days.length-1;i++){ const a=days[i],b=days[i+1],diff=(b-a)/86400000; if(!(diff===1&&isWeekday(a)&&isWeekday(b))&&!(isFriToMon(a,b)&&diff===3)) return false; }
+  return true;
+}
+function hasFriMonGap(days){ for(let i=0;i<days.length-1;i++) if(isFriToMon(days[i],days[i+1])) return true; return false; }
+
+function runFindAvail(){
+  const daysNeeded=jobDays, wtf=document.getElementById('faWorkType').value, rf=document.getElementById('faRole').value;
+  const si=document.getElementById('faStartDate').value, ei=document.getElementById('faEndDate').value;
+  if(!si||!ei){ alert('Please set a date range.'); return; }
+  const searchStart=new Date(si+'T00:00:00'), searchEnd=new Date(ei+'T23:59:59');
+  const busyDays={}; allInstallers.forEach(i=>{ busyDays[i]=new Set(); });
+  todayJobs.forEach(j=>{ if(!busyDays[j.installer]) return; if(wtf&&classifyWorkType(j.workType)!==wtf) return; if(j.date) busyDays[j.installer].add(dateKey(j.date)); });
+  todayBlocks.forEach(b=>{ if(!busyDays[b.installer]||!b.start) return; const end=b.end||b.start; const cur=new Date(b.start); cur.setHours(0,0,0,0); const endD=new Date(end); endD.setHours(23,59,59,999); while(cur<=endD){ busyDays[b.installer].add(dateKey(cur)); cur.setDate(cur.getDate()+1); } });
+  const results=[];
+  allInstallers.forEach(inst=>{
+    if(hiddenInstallers.has(inst)) return; if(rf&&getRole(inst)!==rf) return;
+    const windows=[]; const maxDate=new Date(searchEnd); maxDate.setHours(23,59,59,999);
+    if(daysNeeded===1){
+      let d=new Date(searchStart); d.setHours(0,0,0,0);
+      while(d<=maxDate){ if(isWeekday(d)&&!busyDays[inst].has(dateKey(d))){ windows.push([new Date(d)]); if(windows.length>=3) break; } d.setDate(d.getDate()+1); }
+    } else {
+      const weekdays=[]; let d=new Date(searchStart); d.setHours(0,0,0,0);
+      while(d<=maxDate){ if(isWeekday(d)) weekdays.push(new Date(d)); d.setDate(d.getDate()+1); }
+      for(let i=0;i<=weekdays.length-daysNeeded;i++){
+        const cand=weekdays.slice(i,i+daysNeeded);
+        if(!isConsecutiveWorkWindow(cand)) continue;
+        if(cand.every(day=>!busyDays[inst].has(dateKey(day)))){ windows.push(cand); if(windows.length>=3) break; }
+      }
+    }
+    if(windows.length) results.push({installer:inst,windows});
+  });
+  results.sort((a,b)=>a.windows[0][0]-b.windows[0][0]);
+
+  const inner=document.getElementById('faResultsInner'); inner.innerHTML='';
+  const empty=document.getElementById('faEmpty');
+  if(!results.length){ inner.style.display='none'; empty.style.display='block'; empty.innerHTML=`<div class="fa-empty-icon">📭</div><p>No ${daysNeeded}-day windows found in this range.</p>`; return; }
+  empty.style.display='none'; inner.style.display='block';
+  inner.innerHTML=`<div class="fa-result-count">${results.length} installer${results.length>1?'s':''} with open windows</div>`;
+  const avatarColors=['#bbf7d0','#fecaca','#fde68a','#bfdbfe','#ddd6fe','#fbcfe8'];
+  const avatarFg=['#16a34a','#dc2626','#d97706','#2563eb','#7c3aed','#be185d'];
+  results.forEach((r,idx)=>{
+    const initials=r.installer.split(' ').filter((w,i)=>i<2).map(w=>w[0]).join('').toUpperCase();
+    const ai=Math.abs((r.installer.charCodeAt(0)||0)+(r.installer.charCodeAt(1)||0))%avatarColors.length;
+    const rb=ROLE_BADGE[getRole(r.installer)];
+    let wHTML='';
+    r.windows.forEach(win=>{
+      const fm=win.length>1&&hasFriMonGap(win);
+      const label=fm?'Fri→Mon':win.length===1?'1 day':`${win.length} days`;
+      const dateRange=win.length===1?win[0].toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):`${win[0].toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} → ${win[win.length-1].toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
+      wHTML+=`<div class="fa-window"><span class="fa-win-chip${fm?' fri-mon':''}">${label}</span><div><div class="fa-win-date">${dateRange}</div>${fm?'<div class="fa-win-note">Spans weekend — resumes Mon</div>':''}</div></div>`;
+    });
+    const card=document.createElement('div'); card.className='fa-result-card';
+    card.innerHTML=`<div class="fa-result-head">
+      <div class="fa-avatar" style="background:${avatarColors[ai]};color:${avatarFg[ai]}">${initials}</div>
+      <div class="fa-result-name">${r.installer}<br><span class="role-badge" style="background:${rb.bg};color:${rb.color};border:1px solid ${rb.border}">${rb.label}</span></div>
+      ${idx===0?'<span class="fa-soonest">Soonest</span>':''}
+    </div>${wHTML}`;
+    inner.appendChild(card);
+  });
+}
+
+// ── RESET ──
+function resetDashboard(){
+  filesLoaded={1:false,2:false}; rawData={1:null,2:null};
+  [1,2].forEach(n=>{ document.getElementById('card'+n).classList.remove('loaded','drag-over'); document.getElementById('fileName'+n).textContent=''; document.getElementById('status'+n).textContent=''; document.getElementById('file'+n).value=''; });
+  hiddenInstallers=new Set(); pendingHidden=new Set(); currentDateView='day'; sortedDates=[];
+  todayJobs=[]; todayBlocks=[]; yesterdayJobs=[]; yesterdayBlocks=[]; changes=[];
+  document.getElementById('buildBtn').disabled=true;
+  document.getElementById('app').style.display='none';
+  document.getElementById('uploadScreen').style.display='flex';
+}
+
+// ── HELPERS ──
+function parseDate(str){ if(!str) return null; const d=new Date(str.toString().replace(/(\d+)\/(\d+)\/(\d+)/,'$1/$2/$3')); return isNaN(d)?null:d; }
+function formatDate(d){ if(!d) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function formatTime(str){ if(!str) return ''; const m=str.toString().match(/(\d+):(\d+)\s*(AM|PM)/i); if(!m) return ''; return `${m[1]}:${m[2]} ${m[3].toUpperCase()}`; }
+function truncate(str,n){ return str.length>n?str.slice(0,n)+'…':str; }
+
+// ── TEAM SHARING ──
+
+function initTeamSection(){
+  document.getElementById('teamSection').style.display = '';
+  document.getElementById('uploadOrDivider').style.display = '';
+  // Public gist — no auth needed to read
+  fetch(`https://api.github.com/gists/${GIST_ID}`)
+  .then(r => r.json())
+  .then(data => {
+    const meta = document.getElementById('teamMeta');
+    if(data.updated_at){
+      const t = new Date(data.updated_at);
+      const diff = Math.round((Date.now() - t) / 60000);
+      const ago = diff < 1 ? 'just now' : diff < 60 ? `${diff}m ago` : diff < 1440 ? `${Math.round(diff/60)}h ago` : `${Math.round(diff/1440)}d ago`;
+      meta.textContent = `Last published: ${ago} · ${t.toLocaleString()}`;
+    } else {
+      meta.textContent = 'No data published yet';
+    }
+  })
+  .catch(() => {
+    document.getElementById('teamMeta').textContent = 'Could not reach GitHub — check connection';
+  });
+}
+
+async function loadTeamData(){
+  const btn = document.getElementById('loadTeamBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading…';
+  try {
+    // Public gist — no auth needed
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const fileContent = data.files?.[GIST_FILE]?.content;
+    if(!fileContent) throw new Error('No dashboard data found — publish first');
+    const payload = JSON.parse(fileContent);
+    if(!payload || !Array.isArray(payload.jobs)) throw new Error('Gist data is missing or corrupt');
+    hydrateFromPayload(payload);
+  } catch(err) {
+    alert('Failed to load team data:\n' + err.message);
+    btn.disabled = false;
+    btn.textContent = '📥 Load Today\'s Shared Data';
+  }
+}
+
+function hydrateFromPayload(payload){
+  todayJobs = (payload.jobs || []).map(j => ({...j, date: j.date ? new Date(j.date) : null}));
+  todayBlocks = (payload.blocks || []).map(b => ({
+    ...b,
+    start: b.start ? new Date(b.start) : null,
+    end:   b.end   ? new Date(b.end)   : null
+  }));
+
+  // Re-derive installer list and sorted dates
+  const instSet = new Set([...todayJobs.map(j => j.installer), ...todayBlocks.map(b => b.installer)]);
+  allInstallers = [...instSet].sort();
+  const dateSet = new Set(todayJobs.map(j => j.dateStr).filter(Boolean));
+  todayBlocks.forEach(b => b.startStr && dateSet.add(b.startStr));
+  sortedDates = [...dateSet].sort((a,b) => new Date(a) - new Date(b));
+
+  // Compare with yesterday's localStorage snapshot (enables Changes view for viewers too)
+  yesterdayJobs = []; yesterdayBlocks = [];
+  const todayKey = new Date().toISOString().slice(0,10);
+  try {
+    const stored = localStorage.getItem('instDash_v2');
+    if(stored){
+      const snap = JSON.parse(stored);
+      if(snap.date !== todayKey){
+        yesterdayJobs = (snap.jobs||[]).map(j => ({...j, date: j.date ? new Date(j.date) : null}));
+        yesterdayBlocks = (snap.blocks||[])
+          .filter((b,i,arr) => arr.findIndex(x => x.installer===b.installer && x.startStr===b.startStr)===i)
+          .map(b => ({...b, start: b.start ? new Date(b.start) : null, end: b.end ? new Date(b.end) : null}));
+      }
+    }
+    localStorage.setItem('instDash_v2', JSON.stringify({
+      date: todayKey,
+      jobs:   todayJobs.map(j => ({...j, date: j.date ? j.date.toISOString() : null})),
+      blocks: todayBlocks.map(b => ({...b, start: b.start ? b.start.toISOString() : null, end: b.end ? b.end.toISOString() : null}))
+    }));
+  } catch(e){}
+
+  // Populate date filter
+  const sel = document.getElementById('dateFilter');
+  sel.innerHTML = '';
+  sortedDates.forEach(d => { const o = document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o); });
+  const today = new Date(); today.setHours(0,0,0,0);
+  const nearest = sortedDates.find(d => new Date(d) >= today) || sortedDates[0] || '';
+  if(nearest){ sel.value = nearest; currentMonthDate = new Date(nearest); }
+
+  // Populate FA filters
+  document.getElementById('faWorkType').innerHTML = `<option value="">Any</option>
+    <option value="install">Install</option>
+    <option value="install_recovery">Install Recovery</option>
+    <option value="site_inspection">Site Inspection</option>
+    <option value="other">Other</option>`;
+  document.getElementById('faStartDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('faEndDate').value = new Date(Date.now()+60*864e5).toISOString().slice(0,10);
+
+  detectChanges();
+
+  // Info bar
+  const banner = document.getElementById('storageBanner');
+  const publishedAt = payload.publishedAt;
+  if(publishedAt){
+    const t = new Date(publishedAt);
+    banner.className = 'storage-banner show';
+    banner.textContent = `📥 Shared data loaded — published at ${t.toLocaleTimeString()} on ${t.toLocaleDateString()}`;
+  }
+  document.getElementById('loadInfo').textContent = `${todayJobs.length} appts · ${todayBlocks.length} blocks`;
+  document.getElementById('uploadScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  renderMain();
+}
+
+async function logChangesToSheets(publishedAt) {
+  if (!changes.length || !SHEETS_WEBAPP_URL) return;
+  try {
+    const dateStr = document.getElementById('dateFilter').value || new Date().toLocaleDateString();
+    await fetch(SHEETS_WEBAPP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify({
+        publishedAt,
+        date: dateStr,
+        changes: changes.map(c => ({
+          installer: c.installer,
+          type: c.type,
+          field: c.field,
+          detail: c.detail,
+          modifiedBy: c.modifiedBy || '—'
+        }))
+      })
+    });
+  } catch(e) { /* non-blocking — sheet logging failure should not interrupt publish */ }
+}
+
+async function publishToTeam(){
+  // Prompt for token if not yet saved (stored once in localStorage)
+  if(!GIST_TOKEN){
+    const t = prompt('Enter your GitHub personal access token (gist scope) to publish.\nThis is saved locally and never sent anywhere except GitHub.');
+    if(!t) return;
+    GIST_TOKEN = t.trim();
+    localStorage.setItem('inst_gist_token', GIST_TOKEN);
+  }
+
+  const btn = document.getElementById('publishBtn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Publishing…';
+
+  const publishedAt = new Date().toISOString();
+  const payload = {
+    publishedAt,
+    jobs:   todayJobs.map(j => ({...j, date: j.date ? j.date.toISOString() : null})),
+    blocks: todayBlocks.map(b => ({...b, start: b.start ? b.start.toISOString() : null, end: b.end ? b.end.toISOString() : null}))
+  };
+
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `token ${GIST_TOKEN}`
+      },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(payload) } } })
+    });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    // Log any detected changes to Google Sheets (fire-and-forget)
+    logChangesToSheets(publishedAt);
+
+    const now = new Date();
+    const banner = document.getElementById('storageBanner');
+    banner.className = 'storage-banner show';
+    const changeNote = changes.length ? ` · ${changes.length} change${changes.length > 1 ? 's' : ''} logged to Sheets` : '';
+    banner.textContent = `📤 Published to team at ${now.toLocaleTimeString()} · ${todayJobs.length} appointments, ${todayBlocks.length} blocks${changeNote}`;
+
+    btn.textContent = '✅ Published!';
+    setTimeout(() => { btn.disabled = false; btn.textContent = origText; }, 4000);
+  } catch(err){
+    alert('Publish failed:\n' + err.message);
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
+}
+
+// Show team data section if a bin is already known
+initTeamSection();
+</script>
+</body>
+</html>
