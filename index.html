@@ -2215,9 +2215,9 @@ async function loadTeamData(){
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const fileContent = data.files?.[GIST_FILE]?.content;
-    if(!fileContent) throw new Error('No dashboard data found — publish first');
+    if(!fileContent) throw new Error('No data published yet — upload your files and click "Publish to Team" first');
     const payload = JSON.parse(fileContent);
-    if(!payload || !Array.isArray(payload.jobs)) throw new Error('Gist data is missing or corrupt');
+    if(!payload || !Array.isArray(payload.jobs)) throw new Error('No data published yet — upload your files and click "Publish to Team" first');
     hydrateFromPayload(payload);
   } catch(err) {
     alert('Failed to load team data:\n' + err.message);
