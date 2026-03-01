@@ -1673,10 +1673,14 @@ function computeStats(dates) {
   const instVisible = visible.filter(i => getRole(i) === 'installer');
   const supVisible  = visible.filter(i => getRole(i) === 'supervisor');
 
-  // For each date × installer, tally open/booked/blocked SLOTS
+  // For each date × installer, tally open/booked/blocked SLOTS.
+  // Only count dates that exist in sortedDates (have actual loaded data) —
+  // calendar-generated dates outside the data range would falsely show all installers as open.
+  const loadedDateSet = new Set(sortedDates);
   function tallySlots(datesArr, subset) {
     let open = 0, booked = 0, blocked = 0;
     datesArr.forEach(ds => {
+      if (!loadedDateSet.has(ds)) return; // skip dates with no loaded data
       const map = buildMap(ds);
       subset.forEach(inst => {
         const d = map[inst];
