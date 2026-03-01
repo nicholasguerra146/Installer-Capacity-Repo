@@ -983,12 +983,10 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 }
 .list-job-subj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 
-/* Job tooltip — shown on hover for both list chips and card rows */
-.has-tooltip { position: relative; cursor: default; }
-.has-tooltip::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 0; top: calc(100% + 6px);
+/* Job tooltip — JS-positioned, see initTooltip() */
+.has-tooltip { cursor: default; }
+#job-tooltip {
+  position: fixed;
   background: #0f172a;
   color: #e2e8f0;
   padding: 8px 12px;
@@ -997,19 +995,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   font-family: 'DM Sans', sans-serif;
   font-weight: 400;
   white-space: pre-line;
-  width: max-content;
   max-width: 300px;
-  z-index: 200;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  z-index: 9999;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
   pointer-events: none;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.15s, transform 0.15s;
   line-height: 1.6;
-}
-.has-tooltip:hover::after {
-  opacity: 1;
-  transform: translateY(0);
+  opacity: 0;
+  transition: opacity 0.12s;
+  display: none;
 }
 .list-block-chip {
   display: inline-flex; align-items: center; gap: 5px;
@@ -2414,6 +2407,61 @@ async function publishToTeam(){
 
 // Show team data section if a bin is already known
 initTeamSection();
+
+// ── TOOLTIP SYSTEM ──
+(function initTooltip() {
+  const tip = document.createElement('div');
+  tip.id = 'job-tooltip';
+  document.body.appendChild(tip);
+
+  let hideTimer;
+
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('.has-tooltip');
+    if (!el) return;
+    const text = el.getAttribute('data-tooltip');
+    if (!text) return;
+
+    clearTimeout(hideTimer);
+    tip.textContent = text;
+    tip.style.display = 'block';
+    tip.style.opacity = '0';
+
+    // Position after display so dimensions are known
+    requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      const tw = tip.offsetWidth;
+      const th = tip.offsetHeight;
+      const margin = 10;
+
+      let left = rect.left;
+      let top  = rect.bottom + 6;
+
+      // Flip right → align to right edge of element if overflow
+      if (left + tw > window.innerWidth - margin) {
+        left = rect.right - tw;
+      }
+      // Clamp left edge
+      if (left < margin) left = margin;
+
+      // Flip above if overflows bottom
+      if (top + th > window.innerHeight - margin) {
+        top = rect.top - th - 6;
+      }
+
+      tip.style.left = left + 'px';
+      tip.style.top  = top  + 'px';
+      tip.style.opacity = '1';
+    });
+  });
+
+  document.addEventListener('mouseout', e => {
+    const el = e.target.closest('.has-tooltip');
+    if (!el) return;
+    tip.style.opacity = '0';
+    hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 120);
+  });
+})();
 </script>
 </body>
 </html>
