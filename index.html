@@ -938,6 +938,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   display: flex; align-items: center; gap: 9px;
   padding: 5px 10px; border-radius: 6px;
 }
+.sidebar-stat-row-clickable { cursor: pointer; transition: background 0.12s; }
+.sidebar-stat-row-clickable:hover { background: rgba(255,255,255,0.07); }
 .sidebar-stat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .sidebar-stat-label { flex: 1; font-size: 12px; color: #64748b; font-weight: 500; }
 .sidebar-stat-val {
@@ -1113,9 +1115,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <!-- SIDEBAR STATS -->
     <div class="sidebar-stats" id="sidebarStatsPanel">
       <div class="sidebar-stats-title">Installers</div>
-      <div class="sidebar-stat-row">
+      <div class="sidebar-stat-row sidebar-stat-row-clickable" onclick="openSlotsDetail('installer')" title="Click for breakdown">
         <div class="sidebar-stat-dot" style="background:var(--available)"></div>
-        <div class="sidebar-stat-label">Open Slots</div>
+        <div class="sidebar-stat-label">Open Slots <span style="font-size:9px;opacity:0.45;margin-left:2px;">▸</span></div>
         <div class="sidebar-stat-val" id="sideStatAvail">—</div>
       </div>
       <div class="sidebar-stat-row">
@@ -1139,9 +1141,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
         <div class="sidebar-stat-val" id="sideStatConflicts" style="color:#be123c">—</div>
       </div>
       <div class="sidebar-stats-title" style="margin-top:10px;">Supervisors</div>
-      <div class="sidebar-stat-row">
+      <div class="sidebar-stat-row sidebar-stat-row-clickable" onclick="openSlotsDetail('supervisor')" title="Click for breakdown">
         <div class="sidebar-stat-dot" style="background:var(--available)"></div>
-        <div class="sidebar-stat-label">Open Slots</div>
+        <div class="sidebar-stat-label">Open Slots <span style="font-size:9px;opacity:0.45;margin-left:2px;">▸</span></div>
         <div class="sidebar-stat-val" id="sideStatSupAvail">—</div>
       </div>
       <div class="sidebar-stat-row">
@@ -1680,7 +1682,8 @@ function computeStats(dates) {
   function tallySlots(datesArr, subset) {
     let open = 0, booked = 0, blocked = 0;
     datesArr.forEach(ds => {
-      if (!loadedDateSet.has(ds)) return; // skip dates with no loaded data
+      const _dow = new Date(ds).getDay();
+      if (!loadedDateSet.has(ds) || _dow === 0 || _dow === 6) return; // skip unloaded dates and weekends
       const map = buildMap(ds);
       subset.forEach(inst => {
         const d = map[inst];
@@ -2532,6 +2535,108 @@ initTeamSection();
     hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 120);
   });
 })();
+</script>
+
+<!-- ── OPEN SLOTS DETAIL MODAL ── -->
+<div id="slotsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center;" onclick="if(event.target===this)closeSlotsModal()">
+  <div style="background:var(--surface);border-radius:14px;padding:24px 28px;max-width:460px;width:calc(100% - 40px);max-height:72vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div id="slotsModalTitle" style="font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.02em;"></div>
+        <div id="slotsModalSub" style="font-size:12px;color:var(--text-3);margin-top:3px;"></div>
+      </div>
+      <button onclick="closeSlotsModal()" style="border:none;background:none;cursor:pointer;color:var(--text-3);font-size:16px;line-height:1;padding:3px 8px;border-radius:6px;margin-left:16px;flex-shrink:0;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">✕</button>
+    </div>
+    <div id="slotsModalBody"></div>
+  </div>
+</div>
+
+<script>
+function openSlotsDetail(role) {
+  const df = document.getElementById('dateFilter').value;
+  let statDates;
+  if (currentMainView === 'grid' && currentDateView === 'month') statDates = getMonthDates();
+  else if (currentMainView === 'grid' && currentDateView !== 'day') statDates = getViewDates();
+  else statDates = df ? [df] : sortedDates;
+
+  // Filter to loaded, non-weekend dates only
+  const loadedSet = new Set(sortedDates);
+  const activeDates = statDates.filter(ds => {
+    const dow = new Date(ds).getDay();
+    return loadedSet.has(ds) && dow !== 0 && dow !== 6;
+  });
+
+  // Visible subset for the given role
+  const rf = document.getElementById('roleFilter').value;
+  const search = document.getElementById('searchFilter').value.toLowerCase();
+  const subset = allInstallers.filter(inst => {
+    if (hiddenInstallers.has(inst)) return false;
+    if (search && !inst.toLowerCase().includes(search)) return false;
+    if (rf && getRole(inst) !== rf) return false;
+    return getRole(inst) === role;
+  });
+
+  // Build per-installer list of open dates
+  const openByInst = [];
+  subset.forEach(inst => {
+    const openDates = [];
+    activeDates.forEach(ds => {
+      const m = buildMap(ds);
+      const d = m[inst];
+      if (!d || (d.jobs.length === 0 && d.blocks.length === 0)) openDates.push(ds);
+    });
+    if (openDates.length > 0) openByInst.push({ installer: inst, dates: openDates });
+  });
+  openByInst.sort((a,b) => b.dates.length - a.dates.length || a.installer.localeCompare(b.installer));
+
+  const isDay = activeDates.length === 1;
+  const totalSlots = openByInst.reduce((s,r) => s + r.dates.length, 0);
+  const title = role === 'installer' ? 'Open Installer Slots' : 'Open Supervisor Slots';
+  const sub = isDay && activeDates.length > 0
+    ? new Date(activeDates[0]).toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' })
+    : `${activeDates.length} day${activeDates.length !== 1 ? 's' : ''} \u00b7 ${totalSlots} open slot${totalSlots !== 1 ? 's' : ''}`;
+
+  function fmtShort(ds) {
+    const d = new Date(ds);
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()] + '\u00a0' + d.toLocaleDateString('en-US', {month:'numeric', day:'numeric'});
+  }
+
+  let html = '';
+  if (openByInst.length === 0) {
+    html = '<div style="text-align:center;padding:28px 0;color:var(--text-3);font-size:13px;">No open slots in this range.</div>';
+  } else if (isDay) {
+    html = openByInst.map(r =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--available);flex-shrink:0;"></div>
+        <div style="font-size:13px;font-weight:500;color:var(--text-2);">${r.installer}</div>
+        ${isNcOnly(r.installer) ? '<span class="nc-only-badge" style="margin-left:2px;">NC Only</span>' : ''}
+      </div>`
+    ).join('');
+  } else {
+    html = openByInst.map(r =>
+      `<div style="padding:9px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:var(--available);flex-shrink:0;"></div>
+          <div style="font-size:13px;font-weight:500;color:var(--text-2);">${r.installer}</div>
+          ${isNcOnly(r.installer) ? '<span class="nc-only-badge" style="margin-left:2px;">NC Only</span>' : ''}
+          <div style="margin-left:auto;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--available);">${r.dates.length}</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;padding-left:13px;">
+          ${r.dates.map(ds => `<span style="background:var(--available-bg);color:var(--available);border:1px solid var(--available-border);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:500;">${fmtShort(ds)}</span>`).join('')}
+        </div>
+      </div>`
+    ).join('');
+  }
+
+  document.getElementById('slotsModalTitle').textContent = title;
+  document.getElementById('slotsModalSub').textContent = sub;
+  document.getElementById('slotsModalBody').innerHTML = html;
+  document.getElementById('slotsModal').style.display = 'flex';
+}
+
+function closeSlotsModal() {
+  document.getElementById('slotsModal').style.display = 'none';
+}
 </script>
 </body>
 </html>
