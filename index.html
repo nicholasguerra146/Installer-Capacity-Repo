@@ -1542,6 +1542,7 @@ function buildDashboard(){
   document.getElementById('faEndDate').value=new Date(Date.now()+60*864e5).toISOString().slice(0,10);
 
   detectChanges();
+  logChangesToSheets(new Date().toISOString()); // audit log — fires whenever new changes are detected
 
   document.getElementById('loadInfo').textContent=`${todayJobs.length} appts · ${todayBlocks.length} blocks`;
   document.getElementById('uploadScreen').style.display='none';
@@ -2391,6 +2392,7 @@ function hydrateFromPayload(payload){
   document.getElementById('faEndDate').value = new Date(Date.now()+60*864e5).toISOString().slice(0,10);
 
   detectChanges();
+  logChangesToSheets(new Date().toISOString()); // audit log — fires whenever new changes are detected
 
   // Info bar
   const banner = document.getElementById('storageBanner');
@@ -2406,16 +2408,14 @@ function hydrateFromPayload(payload){
   renderMain();
 }
 
-async function logChangesToSheets(publishedAt) {
+async function logChangesToSheets(detectedAt) {
   if (!changes.length || !SHEETS_WEBAPP_URL) return;
   try {
-    const dateStr = document.getElementById('dateFilter').value || new Date().toLocaleDateString();
     await fetch(SHEETS_WEBAPP_URL, {
       method: 'POST',
       mode: 'no-cors',
       body: JSON.stringify({
-        publishedAt,
-        date: dateStr,
+        detectedAt,
         changes: changes.map(c => ({
           installer: c.installer,
           type: c.type,
@@ -2425,7 +2425,7 @@ async function logChangesToSheets(publishedAt) {
         }))
       })
     });
-  } catch(e) { /* non-blocking — sheet logging failure should not interrupt publish */ }
+  } catch(e) { /* non-blocking */ }
 }
 
 async function publishToTeam(){
