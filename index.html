@@ -1118,18 +1118,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <div class="sidebar-stats-title">Installers</div>
       <div class="sidebar-stat-row">
         <div class="sidebar-stat-dot" style="background:var(--available)"></div>
-        <div class="sidebar-stat-label">Available</div>
+        <div class="sidebar-stat-label">Open Slots</div>
         <div class="sidebar-stat-val" id="sideStatAvail">—</div>
       </div>
       <div class="sidebar-stat-row">
         <div class="sidebar-stat-dot" style="background:var(--busy)"></div>
         <div class="sidebar-stat-label">Booked</div>
         <div class="sidebar-stat-val" id="sideStatBusy">—</div>
-      </div>
-      <div class="sidebar-stat-row">
-        <div class="sidebar-stat-dot" style="background:var(--partial)"></div>
-        <div class="sidebar-stat-label">Partial</div>
-        <div class="sidebar-stat-val" id="sideStatPartial">—</div>
       </div>
       <div class="sidebar-stat-row">
         <div class="sidebar-stat-dot" style="background:var(--blocked)"></div>
@@ -1149,7 +1144,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <div class="sidebar-stats-title" style="margin-top:10px;">Supervisors</div>
       <div class="sidebar-stat-row">
         <div class="sidebar-stat-dot" style="background:var(--available)"></div>
-        <div class="sidebar-stat-label">Available</div>
+        <div class="sidebar-stat-label">Open Slots</div>
         <div class="sidebar-stat-val" id="sideStatSupAvail">—</div>
       </div>
       <div class="sidebar-stat-row">
@@ -1665,7 +1660,8 @@ function getMonthDates() {
 }
 
 // ── COMPUTE AGGREGATE STATS ACROSS DATES ──
-// Returns { installer: {avail,busy,partial,blocked}, supervisor: {avail,busy,blocked} }
+// Counts installer-day SLOTS (not head counts) so the sidebar reflects capacity.
+// Returns { installer: {open,booked,blocked}, supervisor: {open,booked,blocked} }
 function computeStats(dates) {
   const rf = document.getElementById('roleFilter').value;
   const search = document.getElementById('searchFilter').value.toLowerCase();
@@ -1680,47 +1676,29 @@ function computeStats(dates) {
   const instVisible = visible.filter(i => getRole(i) === 'installer');
   const supVisible  = visible.filter(i => getRole(i) === 'supervisor');
 
-  function tallyOne(date, subset) {
-    const map = buildMap(date);
-    let avail = 0, busy = 0, partial = 0, blocked = 0;
-    subset.forEach(inst => {
-      const d = map[inst];
-      if (!d || d.status === 'available') avail++;
-      else if (d.status === 'busy') busy++;
-      else if (d.status === 'partial') partial++;
-      else if (d.status === 'blocked') blocked++;
-    });
-    return { avail, busy, partial, blocked };
-  }
-
-  function tallyMulti(dates, subset) {
-    const data = {};
-    subset.forEach(inst => { data[inst] = { hasFreeDay: false, hasJob: false, hasBlock: false }; });
-    dates.forEach(ds => {
+  // For each date × installer, tally open/booked/blocked SLOTS
+  function tallySlots(datesArr, subset) {
+    let open = 0, booked = 0, blocked = 0;
+    datesArr.forEach(ds => {
       const map = buildMap(ds);
       subset.forEach(inst => {
         const d = map[inst];
-        if (!d || d.status === 'available') { data[inst].hasFreeDay = true; return; }
-        if (d.jobs.length > 0) data[inst].hasJob = true;
-        if (d.blocks.length > 0) data[inst].hasBlock = true;
+        const hasJob   = d && d.jobs.length > 0;
+        const hasBlock = d && d.blocks.length > 0;
+        if (hasJob)        booked++;   // has a job (busy or partial) → counts as booked slot
+        else if (hasBlock) blocked++;  // blocked day, no job → unavailable
+        else               open++;     // free → open appointment slot
       });
     });
-    let avail = 0, busy = 0, partial = 0, blocked = 0;
-    Object.values(data).forEach(s => {
-      if (s.hasFreeDay) avail++;
-      if (s.hasJob) busy++;
-      if (s.hasBlock && !s.hasJob) blocked++;
-    });
-    return { avail, busy, partial, blocked };
+    return { open, booked, blocked };
   }
 
-  const tally = dates.length === 1 ? tallyOne : tallyMulti;
-  const instStats = tally(dates.length === 1 ? dates[0] : dates, instVisible);
-  const supStats  = tally(dates.length === 1 ? dates[0] : dates, supVisible);
+  const instStats = tallySlots(dates, instVisible);
+  const supStats  = tallySlots(dates, supVisible);
 
-  // Combined (for backwards compat with anything that uses .avail etc.)
+  // Backwards-compat aliases so existing code outside renderMain doesn't break
   return {
-    avail: instStats.avail, busy: instStats.busy, partial: instStats.partial, blocked: instStats.blocked,
+    avail: instStats.open, busy: instStats.booked, partial: 0, blocked: instStats.blocked,
     installer: instStats,
     supervisor: supStats
   };
@@ -1741,21 +1719,20 @@ function renderMain(){
   const conflictCount = todayJobs.filter(j => getJobConflict(j.installer, j.workType || '')).length;
 
   // Sidebar stats panel — installers
-  document.getElementById('sideStatAvail').textContent = stats.installer.avail;
-  document.getElementById('sideStatBusy').textContent = stats.installer.busy;
-  document.getElementById('sideStatPartial').textContent = stats.installer.partial;
+  document.getElementById('sideStatAvail').textContent = stats.installer.open;
+  document.getElementById('sideStatBusy').textContent = stats.installer.booked;
   document.getElementById('sideStatBlocked').textContent = stats.installer.blocked;
   document.getElementById('sideStatChanged').textContent = changedCount;
   const conflictEl = document.getElementById('sideStatConflicts');
   conflictEl.textContent = conflictCount;
   conflictEl.style.color = conflictCount > 0 ? '#be123c' : '#e2e8f0';
   // Sidebar stats panel — supervisors
-  document.getElementById('sideStatSupAvail').textContent = stats.supervisor.avail;
-  document.getElementById('sideStatSupBusy').textContent = stats.supervisor.busy;
+  document.getElementById('sideStatSupAvail').textContent = stats.supervisor.open;
+  document.getElementById('sideStatSupBusy').textContent = stats.supervisor.booked;
   document.getElementById('sideStatSupBlocked').textContent = stats.supervisor.blocked;
 
   // Sidebar load info (compact summary)
-  document.getElementById('sidebarStats').textContent = `${stats.avail} avail · ${stats.busy + stats.partial + stats.blocked} busy`;
+  document.getElementById('sidebarStats').textContent = `${stats.installer.open} open · ${stats.installer.booked} booked`;
 
   // Badges
   const cb = document.getElementById('changesBadge');
