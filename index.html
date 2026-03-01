@@ -976,11 +976,41 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   padding: 3px 8px; border-radius: 5px;
   background: var(--bg); border: 1px solid var(--border);
   font-size: 11px; color: var(--text-2); max-width: 240px;
+  position: relative; cursor: default;
 }
 .list-job-time {
   font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-4); flex-shrink: 0;
 }
 .list-job-subj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+
+/* Job tooltip — shown on hover for both list chips and card rows */
+.has-tooltip { position: relative; cursor: default; }
+.has-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 0; top: calc(100% + 6px);
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  white-space: pre-line;
+  width: max-content;
+  max-width: 300px;
+  z-index: 200;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.15s, transform 0.15s;
+  line-height: 1.6;
+}
+.has-tooltip:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
 .list-block-chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 8px; border-radius: 5px;
@@ -1858,8 +1888,16 @@ function buildListRow(d) {
       if (/^install\s*-/i.test(wt))                                     { bc = 'badge-install';   bl = 'Install'; }
       else if (/^install recovery$/i.test(wt)||/^recovery\s*-/i.test(wt)) { bc = 'badge-recovery'; bl = 'Recovery'; }
       else if (/^site inspection/i.test(wt))                             { bc = 'badge-service';  bl = 'Inspection'; }
+      const tooltipLines = [
+        j.subject,
+        j.workType || '',
+        j.time,
+        j.apptNum ? 'Appt: ' + j.apptNum : '',
+        j.modifiedBy ? 'Modified by: ' + j.modifiedBy : ''
+      ].filter(Boolean).join('\n');
       const chip = document.createElement('div');
-      chip.className = 'list-job-chip';
+      chip.className = 'list-job-chip has-tooltip';
+      chip.setAttribute('data-tooltip', tooltipLines);
       chip.innerHTML = `<span class="list-job-time">${j.time}</span><span class="list-job-subj">${truncate(j.subject,32)}</span><span class="wtype-badge ${bc}">${bl}</span>`;
       jobsCol.appendChild(chip);
     });
@@ -2042,7 +2080,14 @@ function buildCard(d){
         if (/^install\s*-/i.test(wt)) { bc = 'badge-install'; bl = 'Install'; }
         else if (/^install recovery$/i.test(wt) || /^recovery\s*-/i.test(wt)) { bc = 'badge-recovery'; bl = 'Install Recovery'; }
         else if (/^site inspection/i.test(wt)) { bc = 'badge-service'; bl = 'Site Inspection'; }
-        html+=`<div class="job-row">
+        const cardTooltip = [
+          j.subject,
+          j.workType || '',
+          j.time,
+          j.apptNum ? 'Appt: ' + j.apptNum : '',
+          j.modifiedBy ? 'Modified by: ' + j.modifiedBy : ''
+        ].filter(Boolean).join('\n');
+        html+=`<div class="job-row has-tooltip" data-tooltip="${cardTooltip.replace(/"/g,'&quot;')}">
           <div class="job-time">${j.time}</div>
           <div style="flex:1"><div class="job-subj">${truncate(j.subject,45)}</div>${j.modifiedBy?`<div class="job-meta">Modified by ${j.modifiedBy}</div>`:''}</div>
           <span class="wtype-badge ${bc}">${bl}</span></div>`;
