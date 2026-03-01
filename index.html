@@ -537,9 +537,26 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   font-weight: 500;
 }
 .badge-install { background: #dcfce7; color: #16a34a; }
+.badge-newconstruction { background: #e0f2fe; color: #0369a1; }
 .badge-recovery { background: #fee2e2; color: #dc2626; }
 .badge-service { background: #fef3c7; color: #d97706; }
 .badge-other { background: var(--blocked-bg); color: var(--blocked); }
+.badge-conflict {
+  background: #fff1f2; color: #be123c;
+  border: 1px solid #fecdd3;
+}
+.job-conflict-chip {
+  border-color: #fca5a5 !important;
+  background: #fff1f2 !important;
+}
+.job-conflict-chip .list-job-subj { color: #be123c; }
+.conflict-icon { font-size: 10px; flex-shrink: 0; }
+.nc-only-badge {
+  font-size: 9px; font-family: 'DM Mono', monospace; font-weight: 600;
+  padding: 1px 5px; border-radius: 3px;
+  background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
 
 .block-row {
   display: flex;
@@ -1124,6 +1141,11 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
         <div class="sidebar-stat-label">Changed</div>
         <div class="sidebar-stat-val" id="sideStatChanged">—</div>
       </div>
+      <div class="sidebar-stat-row">
+        <div class="sidebar-stat-dot" style="background:#be123c"></div>
+        <div class="sidebar-stat-label">Conflicts</div>
+        <div class="sidebar-stat-val" id="sideStatConflicts" style="color:#be123c">—</div>
+      </div>
       <div class="sidebar-stats-title" style="margin-top:10px;">Supervisors</div>
       <div class="sidebar-stat-row">
         <div class="sidebar-stat-dot" style="background:var(--available)"></div>
@@ -1379,6 +1401,23 @@ const SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbylDSJIZ2w5mP
 // ── ROLE DEFINITIONS ──
 const SUPERVISORS = ['larry westbrook','matt hegenderfer','adam kottenstette'];
 function getRole(name) { return SUPERVISORS.some(s => name.toLowerCase().includes(s)) ? 'supervisor' : 'installer'; }
+
+// ── INSTALLER RESTRICTIONS ──
+// NC_ONLY: can only be scheduled for New Construction jobs
+const NC_ONLY = ['watson construction services'];
+function isNcOnly(name) { return NC_ONLY.some(s => name.toLowerCase().includes(s)); }
+
+// Returns a conflict reason string if the job violates scheduling rules, or null if OK
+function getJobConflict(installerName, workType) {
+  const wt = classifyWorkType(workType);
+  if (isNcOnly(installerName)) {
+    if (wt !== 'newconstruction') return 'NC-only installer — should only be scheduled for New Construction jobs';
+  }
+  if (wt === 'site_inspection' && getRole(installerName) !== 'supervisor') {
+    return 'Site inspection is a supervisor function';
+  }
+  return null;
+}
 const ROLE_BADGE = {
   supervisor: { label:'SUPERVISOR', bg:'#eff6ff', color:'#2563eb', border:'#bfdbfe' },
   installer:  { label:'INSTALLER',  bg:'#f0fdf4', color:'#16a34a', border:'#bbf7d0' }
@@ -1698,6 +1737,7 @@ function renderMain(){
 
   const stats = computeStats(statDates);
   const changedCount = new Set(changes.map(c => c.installer)).size;
+  const conflictCount = todayJobs.filter(j => getJobConflict(j.installer, j.workType || '')).length;
 
   // Sidebar stats panel — installers
   document.getElementById('sideStatAvail').textContent = stats.installer.avail;
@@ -1705,6 +1745,9 @@ function renderMain(){
   document.getElementById('sideStatPartial').textContent = stats.installer.partial;
   document.getElementById('sideStatBlocked').textContent = stats.installer.blocked;
   document.getElementById('sideStatChanged').textContent = changedCount;
+  const conflictEl = document.getElementById('sideStatConflicts');
+  conflictEl.textContent = conflictCount;
+  conflictEl.style.color = conflictCount > 0 ? '#be123c' : '#e2e8f0';
   // Sidebar stats panel — supervisors
   document.getElementById('sideStatSupAvail').textContent = stats.supervisor.avail;
   document.getElementById('sideStatSupBusy').textContent = stats.supervisor.busy;
@@ -1860,6 +1903,7 @@ function buildListRow(d) {
     <div class="list-name">${d.installer}</div>
     <div class="list-name-sub">
       <span class="role-badge" style="background:${rb.bg};color:${rb.color};border:1px solid ${rb.border}">${rb.label}</span>
+      ${isNcOnly(d.installer) ? '<span class="nc-only-badge">NC Only</span>' : ''}
       ${d.changed ? '<span class="changed-chip">Changed</span>' : ''}
     </div>`;
   row.appendChild(nameCol);
@@ -1876,22 +1920,20 @@ function buildListRow(d) {
     jobsCol.innerHTML = '<span class="list-avail-msg">✓ Available all day</span>';
   } else {
     d.jobs.slice(0, 3).forEach(j => {
-      const wt = j.workType || '';
-      let bc = 'badge-other', bl = 'Other';
-      if (/^install\s*-/i.test(wt))                                     { bc = 'badge-install';   bl = 'Install'; }
-      else if (/^install recovery$/i.test(wt)||/^recovery\s*-/i.test(wt)) { bc = 'badge-recovery'; bl = 'Recovery'; }
-      else if (/^site inspection/i.test(wt))                             { bc = 'badge-service';  bl = 'Inspection'; }
+      const { bc, bl } = workTypeBadge(j.workType || '');
+      const conflict = getJobConflict(d.installer, j.workType || '');
       const tooltipLines = [
         j.subject,
         j.workType || '',
         j.time,
         j.apptNum ? 'Appt: ' + j.apptNum : '',
-        j.modifiedBy ? 'Modified by: ' + j.modifiedBy : ''
+        j.modifiedBy ? 'Modified by: ' + j.modifiedBy : '',
+        conflict ? '⚠ ' + conflict : ''
       ].filter(Boolean).join('\n');
       const chip = document.createElement('div');
-      chip.className = 'list-job-chip has-tooltip';
+      chip.className = 'list-job-chip has-tooltip' + (conflict ? ' job-conflict-chip' : '');
       chip.setAttribute('data-tooltip', tooltipLines);
-      chip.innerHTML = `<span class="list-job-time">${j.time}</span><span class="list-job-subj">${truncate(j.subject,32)}</span><span class="wtype-badge ${bc}">${bl}</span>`;
+      chip.innerHTML = `${conflict ? '<span class="conflict-icon">⚠</span>' : ''}<span class="list-job-time">${j.time}</span><span class="list-job-subj">${truncate(j.subject,32)}</span><span class="wtype-badge ${conflict ? 'badge-conflict' : bc}">${bl}</span>`;
       jobsCol.appendChild(chip);
     });
     if (d.jobs.length > 3) {
@@ -2057,6 +2099,7 @@ function buildCard(d){
       ${d.installer}
       <div class="card-name-sub">
         <span class="role-badge" style="background:${rb.bg};color:${rb.color};border:1px solid ${rb.border}">${rb.label}</span>
+        ${isNcOnly(d.installer) ? '<span class="nc-only-badge">NC Only</span>' : ''}
         ${d.changed?'<span class="changed-chip">Changed</span>':''}
       </div>
     </div>
@@ -2068,22 +2111,21 @@ function buildCard(d){
   } else {
     if(d.jobs.length){
       d.jobs.slice(0,4).forEach(j=>{
-        const wt = j.workType || '';
-        let bc = 'badge-other', bl = 'Other';
-        if (/^install\s*-/i.test(wt)) { bc = 'badge-install'; bl = 'Install'; }
-        else if (/^install recovery$/i.test(wt) || /^recovery\s*-/i.test(wt)) { bc = 'badge-recovery'; bl = 'Install Recovery'; }
-        else if (/^site inspection/i.test(wt)) { bc = 'badge-service'; bl = 'Site Inspection'; }
+        const { bc, bl } = workTypeBadge(j.workType || '');
+        const conflict = getJobConflict(d.installer, j.workType || '');
         const cardTooltip = [
           j.subject,
           j.workType || '',
           j.time,
           j.apptNum ? 'Appt: ' + j.apptNum : '',
-          j.modifiedBy ? 'Modified by: ' + j.modifiedBy : ''
+          j.modifiedBy ? 'Modified by: ' + j.modifiedBy : '',
+          conflict ? '⚠ ' + conflict : ''
         ].filter(Boolean).join('\n');
-        html+=`<div class="job-row has-tooltip" data-tooltip="${cardTooltip.replace(/"/g,'&quot;')}">
-          <div class="job-time">${j.time}</div>
-          <div style="flex:1"><div class="job-subj">${truncate(j.subject,45)}</div>${j.modifiedBy?`<div class="job-meta">Modified by ${j.modifiedBy}</div>`:''}</div>
-          <span class="wtype-badge ${bc}">${bl}</span></div>`;
+        const rowStyle = conflict ? 'background:#fff1f2;border-left:3px solid #fca5a5;padding-left:5px;' : '';
+        html+=`<div class="job-row has-tooltip" data-tooltip="${cardTooltip.replace(/"/g,'&quot;')}" style="${rowStyle}">
+          <div class="job-time">${conflict?'⚠ ':''}${j.time}</div>
+          <div style="flex:1"><div class="job-subj" style="${conflict?'color:#be123c':''}">${truncate(j.subject,45)}</div>${j.modifiedBy?`<div class="job-meta">Modified by ${j.modifiedBy}</div>`:''}</div>
+          <span class="wtype-badge ${conflict?'badge-conflict':bc}">${bl}</span></div>`;
       });
       if(d.jobs.length>4) html+=`<div style="font-size:11px;color:var(--text-4);padding:4px 0;font-family:DM Mono,monospace">+${d.jobs.length-4} more</div>`;
     }
@@ -2120,10 +2162,19 @@ function hideAll(){ allInstallers.forEach(i=>pendingHidden.add(i)); renderManage
 
 // ── WORK TYPE CLASSIFIER ──
 function classifyWorkType(wt) {
-  if (/^install\s*-/i.test(wt)) return 'install';
-  if (/^install recovery$/i.test(wt) || /^recovery\s*-/i.test(wt)) return 'install_recovery';
-  if (/^site inspection/i.test(wt)) return 'site_inspection';
+  if (/new\s*construction/i.test(wt))                                    return 'newconstruction';
+  if (/^install\s*-/i.test(wt))                                          return 'install';
+  if (/^install recovery$/i.test(wt) || /^recovery\s*-/i.test(wt))      return 'install_recovery';
+  if (/^site inspection/i.test(wt))                                      return 'site_inspection';
   return 'other';
+}
+function workTypeBadge(wt) {
+  const c = classifyWorkType(wt);
+  if (c === 'newconstruction')  return { bc: 'badge-newconstruction', bl: 'New Construction' };
+  if (c === 'install')          return { bc: 'badge-install',         bl: 'Install' };
+  if (c === 'install_recovery') return { bc: 'badge-recovery',        bl: 'Install Recovery' };
+  if (c === 'site_inspection')  return { bc: 'badge-service',         bl: 'Site Inspection' };
+  return                               { bc: 'badge-other',           bl: 'Other' };
 }
 
 // ── FIND AVAILABILITY PANEL TOGGLE ──
