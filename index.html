@@ -1320,7 +1320,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
           <div class="fa-two-col">
             <div class="fa-field">
               <label>Work Type</label>
-              <select id="faWorkType"><option value="">Any</option></select>
+              <select id="faWorkType" onchange="onFaWorkTypeChange()"><option value="">Any</option></select>
             </div>
             <div class="fa-field">
               <label>Role</label>
@@ -1541,6 +1541,7 @@ function buildDashboard(){
   faWt.innerHTML = `<option value="">Any</option>
     <option value="install">Install</option>
     <option value="install_recovery">Install Recovery</option>
+    <option value="newconstruction">New Construction</option>
     <option value="site_inspection">Site Inspection</option>
     <option value="other">Other</option>`;
   document.getElementById('faStartDate').value=new Date().toISOString().slice(0,10);
@@ -2187,6 +2188,18 @@ function toggleFAPanel() {
 }
 
 // ── FIND AVAILABILITY ──
+function onFaWorkTypeChange(){
+  const wt = document.getElementById('faWorkType').value;
+  const roleEl = document.getElementById('faRole');
+  if(wt === 'site_inspection'){
+    // Site inspections are a supervisor function — lock role to supervisor
+    roleEl.value = 'supervisor';
+    roleEl.disabled = true;
+  } else {
+    roleEl.disabled = false;
+  }
+}
+
 function stepDays(d){ jobDays=Math.max(1,Math.min(14,jobDays+d)); document.getElementById('daysValue').textContent=jobDays; }
 function isWeekday(d){ const dow=d.getDay(); return dow>=1&&dow<=5; }
 function dateKey(d){ return d.toISOString().slice(0,10); }
@@ -2198,7 +2211,9 @@ function isConsecutiveWorkWindow(days){
 function hasFriMonGap(days){ for(let i=0;i<days.length-1;i++) if(isFriToMon(days[i],days[i+1])) return true; return false; }
 
 function runFindAvail(){
-  const daysNeeded=jobDays, wtf=document.getElementById('faWorkType').value, rf=document.getElementById('faRole').value;
+  const daysNeeded=jobDays, wtf=document.getElementById('faWorkType').value;
+  // Site inspections are supervisor-only — enforce regardless of role dropdown
+  const effectiveRole = wtf==='site_inspection' ? 'supervisor' : document.getElementById('faRole').value;
   const si=document.getElementById('faStartDate').value, ei=document.getElementById('faEndDate').value;
   if(!si||!ei){ alert('Please set a date range.'); return; }
   const searchStart=new Date(si+'T00:00:00'), searchEnd=new Date(ei+'T23:59:59');
@@ -2207,7 +2222,8 @@ function runFindAvail(){
   todayBlocks.forEach(b=>{ if(!busyDays[b.installer]||!b.start) return; const end=b.end||b.start; const cur=new Date(b.start); cur.setHours(0,0,0,0); const endD=new Date(end); endD.setHours(23,59,59,999); while(cur<=endD){ busyDays[b.installer].add(dateKey(cur)); cur.setDate(cur.getDate()+1); } });
   const results=[];
   allInstallers.forEach(inst=>{
-    if(hiddenInstallers.has(inst)) return; if(rf&&getRole(inst)!==rf) return;
+    if(hiddenInstallers.has(inst)) return;
+    if(effectiveRole&&getRole(inst)!==effectiveRole) return;
     const windows=[]; const maxDate=new Date(searchEnd); maxDate.setHours(23,59,59,999);
     if(daysNeeded===1){
       let d=new Date(searchStart); d.setHours(0,0,0,0);
@@ -2223,7 +2239,19 @@ function runFindAvail(){
     }
     if(windows.length) results.push({installer:inst,windows});
   });
-  results.sort((a,b)=>a.windows[0][0]-b.windows[0][0]);
+
+  // For New Construction: sort Watson first, then supervisors, then other installers
+  if(wtf==='newconstruction'){
+    results.sort((a,b)=>{
+      const aWatson=isNcOnly(a.installer)?0:1, bWatson=isNcOnly(b.installer)?0:1;
+      if(aWatson!==bWatson) return aWatson-bWatson;
+      const aSup=getRole(a.installer)==='supervisor'?0:1, bSup=getRole(b.installer)==='supervisor'?0:1;
+      if(aSup!==bSup) return aSup-bSup;
+      return a.windows[0][0]-b.windows[0][0];
+    });
+  } else {
+    results.sort((a,b)=>a.windows[0][0]-b.windows[0][0]);
+  }
 
   const inner=document.getElementById('faResultsInner'); inner.innerHTML='';
   const empty=document.getElementById('faEmpty');
@@ -2236,6 +2264,18 @@ function runFindAvail(){
     const initials=r.installer.split(' ').filter((w,i)=>i<2).map(w=>w[0]).join('').toUpperCase();
     const ai=Math.abs((r.installer.charCodeAt(0)||0)+(r.installer.charCodeAt(1)||0))%avatarColors.length;
     const rb=ROLE_BADGE[getRole(r.installer)];
+    const ncOnly=isNcOnly(r.installer);
+    // Build tag HTML for NC search
+    let ncTag='';
+    if(wtf==='newconstruction'){
+      if(ncOnly){
+        ncTag='<span style="font-size:10px;font-family:\'DM Mono\',monospace;font-weight:600;padding:2px 6px;border-radius:3px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;text-transform:uppercase;letter-spacing:0.04em;">Prioritized</span>';
+      } else if(getRole(r.installer)==='installer'){
+        ncTag='<span style="font-size:10px;font-family:\'DM Mono\',monospace;font-weight:600;padding:2px 6px;border-radius:3px;background:#fef3c7;color:#b45309;border:1px solid #fde68a;text-transform:uppercase;letter-spacing:0.04em;">Approval Required</span>';
+      }
+    }
+    // Soonest badge: first result, or first Watson result for NC
+    const isSoonest = idx===0;
     let wHTML='';
     r.windows.forEach(win=>{
       const fm=win.length>1&&hasFriMonGap(win);
@@ -2246,8 +2286,8 @@ function runFindAvail(){
     const card=document.createElement('div'); card.className='fa-result-card';
     card.innerHTML=`<div class="fa-result-head">
       <div class="fa-avatar" style="background:${avatarColors[ai]};color:${avatarFg[ai]}">${initials}</div>
-      <div class="fa-result-name">${r.installer}<br><span class="role-badge" style="background:${rb.bg};color:${rb.color};border:1px solid ${rb.border}">${rb.label}</span></div>
-      ${idx===0?'<span class="fa-soonest">Soonest</span>':''}
+      <div class="fa-result-name">${r.installer}<br><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;"><span class="role-badge" style="background:${rb.bg};color:${rb.color};border:1px solid ${rb.border}">${rb.label}</span>${ncOnly?'<span class="nc-only-badge">NC Only</span>':''}${ncTag}</div></div>
+      ${isSoonest?'<span class="fa-soonest">Soonest</span>':''}
     </div>${wHTML}`;
     inner.appendChild(card);
   });
