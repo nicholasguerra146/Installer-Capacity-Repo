@@ -2105,7 +2105,7 @@ function renderMonthView(){
 }
 
 function renderChanges(df){
-  const hasY=yesterdayJobs.length>0||yesterdayBlocks.length>0;
+  const hasY=changes.length>0;
   document.getElementById('noChangesNote').style.display=hasY?'none':'block';
   const filtered=df?changes.filter(c=>c.detail.includes(df)):changes;
   const tbody=document.getElementById('changesBody'); tbody.innerHTML='';
